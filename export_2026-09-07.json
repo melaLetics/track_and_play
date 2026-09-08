@@ -1,0 +1,4024 @@
+{
+  "players": [
+    {
+      "id": 1,
+      "name": "Andy"
+    },
+    {
+      "id": 2,
+      "name": "Florian"
+    },
+    {
+      "id": 3,
+      "name": "Mela"
+    },
+    {
+      "id": 4,
+      "name": "Rico"
+    },
+    {
+      "id": 5,
+      "name": "Andreas"
+    },
+    {
+      "id": 6,
+      "name": "Stephan"
+    },
+    {
+      "id": 7,
+      "name": "Henning Fockenbrock"
+    },
+    {
+      "id": 8,
+      "name": "Maiko Schmiel"
+    },
+    {
+      "id": 9,
+      "name": "Mirko"
+    },
+    {
+      "id": 10,
+      "name": "Christian"
+    },
+    {
+      "id": 11,
+      "name": "Steffen"
+    }
+  ],
+  "decks": [
+    {
+      "id": 1,
+      "name": "Aetherdrift Living Energy",
+      "commander": "Saheeli, Radiant Creator",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Green",
+        "Red"
+      ],
+      "type": "precon",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 2,
+      "name": "Final Fantasy Scions & Spellcraft",
+      "commander": "Y'shtola, Nights Blessed",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Blue",
+        "Black"
+      ],
+      "type": "precon",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 3,
+      "name": "Final Fantasy Revival Trance",
+      "commander": "Terry, Herold of Hope",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Red",
+        "Black"
+      ],
+      "type": "precon",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 4,
+      "name": "Tokens everywhere",
+      "commander": "Adrix und Nev, Twincasters",
+      "commander2": " ",
+      "colorIdentity": [
+        "Blue",
+        "Green"
+      ],
+      "type": "upgraded",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/5mBW6JXp3UCV-_B2gJQVrQ"
+    },
+    {
+      "id": 5,
+      "name": "Bloomburrow Squirreld Away",
+      "commander": "Garruk, Cursed Huntsman",
+      "commander2": "",
+      "colorIdentity": [
+        "Black",
+        "Green"
+      ],
+      "type": "precon",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 6,
+      "name": "Kotis Action",
+      "commander": "Kotis, der Giftzahn",
+      "commander2": " ",
+      "colorIdentity": [
+        "Black",
+        "Green",
+        "Blue"
+      ],
+      "type": "homebrew",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/3b2fATb42HSZPKJI4TnOFA"
+    },
+    {
+      "id": 7,
+      "name": "Innistrad Crimson Vow Spirit Squadron",
+      "commander": "Millicent, Restless Revenant",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "White"
+      ],
+      "type": "precon",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": false,
+      "decklink": ""
+    },
+    {
+      "id": 8,
+      "name": "Planeswalker Party",
+      "commander": "Commodore Guff",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Red",
+        "White"
+      ],
+      "type": "precon",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 9,
+      "name": "Flugpioniere",
+      "commander": "Isperia, Supreme Judge",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "White"
+      ],
+      "type": "precon",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 10,
+      "name": "Bloomburrow Animated Army",
+      "commander": "Bello, Bard of the Brambles",
+      "commander2": "",
+      "colorIdentity": [
+        "Red",
+        "Green"
+      ],
+      "type": "precon",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 11,
+      "name": "Vampires for lunch",
+      "commander": "Edgar Markov",
+      "commander2": " ",
+      "colorIdentity": [
+        "Red",
+        "White",
+        "Black"
+      ],
+      "type": "homebrew",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/3q2fAZkC1X2_ea_Ta78LJw"
+    },
+    {
+      "id": 12,
+      "name": "Doctor Who Blast from the Past",
+      "commander": "Der vierte Doctor",
+      "commander2": "Sarah Jane Smith",
+      "colorIdentity": [
+        "Green",
+        "Blue",
+        "White"
+      ],
+      "type": "precon",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 13,
+      "name": "Doctor Who Paradox-Power",
+      "commander": "Der dreizehnte Doctor",
+      "commander2": "Yasmin Khan",
+      "colorIdentity": [
+        "Green",
+        "Blue",
+        "Red"
+      ],
+      "type": "precon",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 14,
+      "name": "Innistrad: Midnight Hunt Coven Counters",
+      "commander": "Leinore, Autumn Sovereign",
+      "commander2": " ",
+      "colorIdentity": [
+        "Green",
+        "White"
+      ],
+      "type": "precon",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": false,
+      "decklink": ""
+    },
+    {
+      "id": 15,
+      "name": "Engel",
+      "commander": "Giada, Font of Hope",
+      "commander2": " ",
+      "colorIdentity": [
+        "White"
+      ],
+      "type": "homebrew",
+      "owner": "Mela",
+      "bracket": 4,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/7Rfigyi0u0yIaXGHwX54TA"
+    },
+    {
+      "id": 16,
+      "name": "Bloomburrow Family Matters",
+      "commander": "Zinnia, Valley's Voice",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Blue",
+        "Red"
+      ],
+      "type": "precon",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 17,
+      "name": "Strixhaven Silverquill Statement",
+      "commander": "Breena, the Demagogue",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Black"
+      ],
+      "type": "precon",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 18,
+      "name": "Don't Spell",
+      "commander": "Niv-Mizzet der Parun",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Red"
+      ],
+      "type": "homebrew",
+      "owner": "Florian",
+      "bracket": 3,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 19,
+      "name": "Fallout Science!",
+      "commander": "Dr. Madison Li",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "White",
+        "Red"
+      ],
+      "type": "precon",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 20,
+      "name": "Fallout Hail, Ceasar",
+      "commander": "Caesar, Imperator der Legion",
+      "commander2": "",
+      "colorIdentity": [
+        "Red",
+        "White",
+        "Black"
+      ],
+      "type": "precon",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 21,
+      "name": "The Ur",
+      "commander": "The Ur-Dragon",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Blue",
+        "Black",
+        "Red",
+        "Green"
+      ],
+      "type": "homebrew",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 22,
+      "name": "Edge of Eternities World Shaper",
+      "commander": "Szarel, Hirte der Schöpfung",
+      "commander2": "",
+      "colorIdentity": [
+        "Black",
+        "Red",
+        "Green"
+      ],
+      "type": "precon",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 23,
+      "name": "Banditen!",
+      "commander": "Kellan, der Bandit",
+      "commander2": "",
+      "colorIdentity": [
+        "Green",
+        "White",
+        "Blue"
+      ],
+      "type": "homebrew",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 24,
+      "name": "Felothar",
+      "commander": "Felothar, Dawn of the Abzan",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Black",
+        "Green"
+      ],
+      "type": "homebrew",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 25,
+      "name": "Edge of Eternals Counter Intelligence",
+      "commander": "Beleberin, das Flaggschiff",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Red",
+        "White"
+      ],
+      "type": "precon",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 26,
+      "name": "Fallout Mutant Menace",
+      "commander": "Der Weise Mottenmann",
+      "commander2": "",
+      "colorIdentity": [
+        "Black",
+        "Green",
+        "Blue"
+      ],
+      "type": "precon",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 27,
+      "name": "Fallout Scrappy Survivors",
+      "commander": "Dogmeat, allzeit loyal",
+      "commander2": "",
+      "colorIdentity": [
+        "Green",
+        "Red",
+        "White"
+      ],
+      "type": "precon",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 28,
+      "name": "Gehiiiiirn!",
+      "commander": "Gisa, die Grabweckerin",
+      "commander2": "",
+      "colorIdentity": [
+        "Black"
+      ],
+      "type": "homebrew",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 29,
+      "name": "Schlangen, überall Schlangen!",
+      "commander": "Xyris, the Writling Storm",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Green",
+        "Red"
+      ],
+      "type": "homebrew",
+      "owner": "Rico",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 30,
+      "name": "Lhurgoyfs",
+      "commander": "Disa the Restless",
+      "commander2": "",
+      "colorIdentity": [
+        "Red",
+        "Black",
+        "Green"
+      ],
+      "type": "homebrew",
+      "owner": "Rico",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 31,
+      "name": "Phyexians",
+      "commander": "Brimaz, Blight of Oreskos",
+      "commander2": "",
+      "colorIdentity": [
+        "Black",
+        "White"
+      ],
+      "type": "homebrew",
+      "owner": "Rico",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 32,
+      "name": "Doctor Who Timey-Wimey",
+      "commander": "Der zehnte Doctor",
+      "commander2": "Rose Tyler",
+      "colorIdentity": [
+        "Blue",
+        "Red",
+        "White"
+      ],
+      "type": "precon",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 33,
+      "name": "Doctor Who Masters of Evil",
+      "commander": "Davros, Schöpfer der Daleks",
+      "commander2": " ",
+      "colorIdentity": [
+        "Blue",
+        "Black",
+        "Red"
+      ],
+      "type": "precon",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 34,
+      "name": "Strixhaven Witherbloom Witchcraft",
+      "commander": "Willowdusk, Essence Seer",
+      "commander2": "",
+      "colorIdentity": [
+        "Black",
+        "Green"
+      ],
+      "type": "precon",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 35,
+      "name": "Strixhaven Prismari Performance",
+      "commander": "Zaffai, Thunder Conductor",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Red"
+      ],
+      "type": "precon",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 36,
+      "name": "Monster Power",
+      "commander": "Xenagos, God or Revels",
+      "commander2": " ",
+      "colorIdentity": [
+        "Red",
+        "Green"
+      ],
+      "type": "homebrew",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/RTupGa4J0kag_EvbJTulZQ"
+    },
+    {
+      "id": 37,
+      "name": "Bad Card Draw",
+      "commander": "The second Doctor",
+      "commander2": "Vislor Turlough",
+      "colorIdentity": [
+        "White",
+        "Blue",
+        "Black"
+      ],
+      "type": "homebrew",
+      "owner": "Andy",
+      "bracket": 4,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/I66fAbvd_neljxDTdO5BCw"
+    },
+    {
+      "id": 38,
+      "name": "Wer hat die Kokosnuss?",
+      "commander": "Cloud, Ex-SOLDAT",
+      "commander2": " ",
+      "colorIdentity": [
+        "Red",
+        "Green",
+        "White"
+      ],
+      "type": "homebrew",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/-P_gwDbkfUObOmnWT_tQHA"
+    },
+    {
+      "id": 39,
+      "name": "Final Fantasy Counter Blitz",
+      "commander": "Yuna, Hohes Medium",
+      "commander2": "",
+      "colorIdentity": [
+        "Green",
+        "White",
+        "Blue"
+      ],
+      "type": "precon",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 40,
+      "name": "Rattendeck",
+      "commander": "Vren der Unbarmherzige",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Black"
+      ],
+      "type": "homebrew",
+      "owner": "Andreas",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 41,
+      "name": "Spell Slinger",
+      "commander": "Alania die Sturmlenkerin",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Red"
+      ],
+      "type": "homebrew",
+      "owner": "Andreas",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 42,
+      "name": "Der gestiefelte Bär",
+      "commander": "Lumra, Gebrüll des Waldes",
+      "commander2": "",
+      "colorIdentity": [
+        "Green"
+      ],
+      "type": "homebrew",
+      "owner": "Andreas",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 43,
+      "name": "Birbs!",
+      "commander": "Choco, Paradies-Suchender",
+      "commander2": "",
+      "colorIdentity": [
+        "Green",
+        "White",
+        "Blue"
+      ],
+      "type": "homebrew",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 44,
+      "name": "You will be tapped",
+      "commander": "Rhoda, Geist Avenger",
+      "commander2": "Timin, Youthful Geist",
+      "colorIdentity": [
+        "White",
+        "Blue"
+      ],
+      "type": "homebrew",
+      "owner": "Mela",
+      "bracket": 3,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/A1WLpVugbUC_csZnzXp0HQ"
+    },
+    {
+      "id": 45,
+      "name": "Life gain & life loss",
+      "commander": "Liesa, Shroud of Dusk",
+      "commander2": " ",
+      "colorIdentity": [
+        "White",
+        "Black"
+      ],
+      "type": "homebrew",
+      "owner": "Andy",
+      "bracket": 3,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/wb2fASn62X-e9Wo5wrWN3w"
+    },
+    {
+      "id": 46,
+      "name": "Kerosin",
+      "commander": "Davros, Schöpfer der Daleks",
+      "commander2": " ",
+      "colorIdentity": [
+        "Blue",
+        "Black",
+        "Red"
+      ],
+      "type": "homebrew",
+      "owner": "Mela",
+      "bracket": 3,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/L7NYce1K6U6mtoNnAYKbAA"
+    },
+    {
+      "id": 47,
+      "name": "Lord of the Rings Riders of Rohan",
+      "commander": "Aragorn, King of Gondor",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Blue",
+        "Red"
+      ],
+      "type": "precon",
+      "owner": "Stephan",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 48,
+      "name": "Toph",
+      "commander": "Toph, erste Metallbändigerin",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Red",
+        "Green"
+      ],
+      "type": "homebrew",
+      "owner": "Andreas",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 49,
+      "name": "The Lost Caverns of Ixalan Explores of the deep",
+      "commander": "Hakbal of the Surging Soul",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Green"
+      ],
+      "type": "precon",
+      "owner": "Stephan",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 50,
+      "name": "Eshki",
+      "commander": "Eshki, Temur's Roar",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Red",
+        "Green"
+      ],
+      "type": "homebrew",
+      "owner": "Stephan",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 51,
+      "name": "Lorwyn Eclipsed Blight Curse",
+      "commander": "The Reaper, King No More",
+      "commander2": "",
+      "colorIdentity": [
+        "Black",
+        "Red"
+      ],
+      "type": "precon",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 52,
+      "name": "Lorwyn Eclipsed Dance of the elements",
+      "commander": "Ashling, the Limitless",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Blue",
+        "Black",
+        "Red",
+        "Green"
+      ],
+      "type": "precon",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 53,
+      "name": "Claws out",
+      "commander": "Arahbo, the First Fang",
+      "commander2": " ",
+      "colorIdentity": [
+        "White"
+      ],
+      "type": "homebrew",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/rNcqfGLj3U-TGFLIZFOdrg"
+    },
+    {
+      "id": 54,
+      "name": "Altaïr",
+      "commander": "Altaïr Ibn-La'ahad",
+      "commander2": "",
+      "colorIdentity": [
+        "Red",
+        "White",
+        "Black"
+      ],
+      "type": "precon",
+      "owner": "Henning Fockenbrock",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 55,
+      "name": "Spaß Deck",
+      "commander": "Sokka, beharrlicher Taktiker",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Red",
+        "White"
+      ],
+      "type": "homebrew",
+      "owner": "Andreas",
+      "bracket": 1,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 56,
+      "name": "Turtle Power!",
+      "commander": "Leonardo, das Gleichgewicht",
+      "commander2": "April O'Neil, live vor Ort",
+      "colorIdentity": [
+        "White",
+        "Blue",
+        "Black",
+        "Red",
+        "Green"
+      ],
+      "type": "upgraded",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/DfOwVG2K40-H7xv86ibbcQ"
+    },
+    {
+      "id": 57,
+      "name": "Engel, Drachen und ein Dämon",
+      "commander": "Kaalia of the Vast",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Red",
+        "Black"
+      ],
+      "type": "homebrew",
+      "owner": "Rico",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 58,
+      "name": "Strixhaven Silverquill Influence",
+      "commander": "Killian, Decisive Mentor",
+      "commander2": "",
+      "colorIdentity": [
+        "Black",
+        "White"
+      ],
+      "type": "precon",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 59,
+      "name": "Quintorius on steroids",
+      "commander": "Quintorius, History Chaser",
+      "commander2": " ",
+      "colorIdentity": [
+        "White",
+        "Red"
+      ],
+      "type": "homebrew",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/I6-fATW8Nny6TfpgxaktWw"
+    },
+    {
+      "id": 60,
+      "name": "The Doctor's Who is Who",
+      "commander": "The Fourteenth Doctor",
+      "commander2": "Rose Noble",
+      "colorIdentity": [
+        "White",
+        "Green",
+        "Red",
+        "Blue"
+      ],
+      "type": "homebrew",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/fgpBrtruIEOaoPEEfQg4Kw"
+    },
+    {
+      "id": 61,
+      "name": "Und do so",
+      "commander": "General Marhault Elsdragon",
+      "commander2": " ",
+      "colorIdentity": [
+        "Green",
+        "Red"
+      ],
+      "type": "homebrew",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/JNRhrtHfyEqSu5g-cSaOsw"
+    },
+    {
+      "id": 62,
+      "name": "Lost Caverns of Ixalan Veloci-Ramp-Tor",
+      "commander": "Pantlaza, Gesegneter der Sonne",
+      "commander2": " ",
+      "colorIdentity": [
+        "Red",
+        "Green",
+        "White"
+      ],
+      "type": "precon",
+      "owner": "Mirko",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 63,
+      "name": "Ich ETB, ihr nix",
+      "commander": "Elash Norn, Mutter der Maschinen",
+      "commander2": "",
+      "colorIdentity": [
+        "White"
+      ],
+      "type": "homebrew",
+      "owner": "Christian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 64,
+      "name": "Die unblockbare Flauschfraktion",
+      "commander": "Delaney, gewiefter Ausguck",
+      "commander2": "",
+      "colorIdentity": [
+        "White"
+      ],
+      "type": "homebrew",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 65,
+      "name": "Dead or Alive",
+      "commander": "Marchesa, the Black Rose",
+      "commander2": " ",
+      "colorIdentity": [
+        "Blue",
+        "Black",
+        "Red"
+      ],
+      "type": "homebrew",
+      "owner": "Mela",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/FHCeutJV_0GdJI_khja_SQ"
+    },
+    {
+      "id": 66,
+      "name": "Return of the General",
+      "commander": "Iroh, Großlotus",
+      "commander2": " ",
+      "colorIdentity": [
+        "Green",
+        "Red",
+        "Blue"
+      ],
+      "type": "homebrew",
+      "owner": "Florian",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 67,
+      "name": "Can't touch them",
+      "commander": "The Serpent Society",
+      "commander2": " ",
+      "colorIdentity": [
+        "Green",
+        "Black"
+      ],
+      "type": "homebrew",
+      "owner": "Andy",
+      "bracket": 2,
+      "active": true,
+      "decklink": "https://moxfield.com/decks/GKYN8gz1-U-XSuBda9aF6g"
+    },
+    {
+      "id": 68,
+      "name": "Der weise Mottenmann",
+      "commander": "Der weise Mottenmann",
+      "commander2": "",
+      "colorIdentity": [
+        "Blue",
+        "Green",
+        "Black"
+      ],
+      "type": "upgraded",
+      "owner": "Steffen",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 69,
+      "name": "Wolf-gang",
+      "commander": "Faldorn, Dread Wolf Herald",
+      "commander2": "",
+      "colorIdentity": [
+        "Red",
+        "Green"
+      ],
+      "type": "homebrew",
+      "owner": "Steffen",
+      "bracket": 2,
+      "active": true,
+      "decklink": ""
+    },
+    {
+      "id": 70,
+      "name": "Atraxa",
+      "commander": "Atraxa, Praetors' Voice",
+      "commander2": "",
+      "colorIdentity": [
+        "White",
+        "Blue",
+        "Black",
+        "Green"
+      ],
+      "type": "homebrew",
+      "owner": "Christian",
+      "bracket": 3,
+      "active": true,
+      "decklink": ""
+    }
+  ],
+  "games": [
+    {
+      "id": 1,
+      "date": "2025-10-18T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 2,
+      "date": "2025-10-18T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 3,
+      "date": "2025-10-18T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 4,
+      "date": "2025-10-18T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 5,
+      "date": "2025-10-18T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 6,
+      "date": "2025-10-19T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 7,
+      "date": "2025-10-19T00:00:00.000",
+      "mode": "Two-Headed Giant",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 8,
+      "date": "2025-10-19T00:00:00.000",
+      "mode": "Two-Headed Giant",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 9,
+      "date": "2025-10-19T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 10,
+      "date": "2025-10-25T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 11,
+      "date": "2025-10-25T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 12,
+      "date": "2025-10-25T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 13,
+      "date": "2025-11-09T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 14,
+      "date": "2025-11-09T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 15,
+      "date": "2025-11-09T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 16,
+      "date": "2025-11-09T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 17,
+      "date": "2025-11-15T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 18,
+      "date": "2025-12-01T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 19,
+      "date": "2025-12-02T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 20,
+      "date": "2025-12-03T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 21,
+      "date": "2025-12-03T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 22,
+      "date": "2025-12-06T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 23,
+      "date": "2025-12-06T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 24,
+      "date": "2025-12-20T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 5,
+      "draw": false
+    },
+    {
+      "id": 25,
+      "date": "2025-12-20T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 5,
+      "draw": false
+    },
+    {
+      "id": 26,
+      "date": "2025-12-24T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 27,
+      "date": "2025-12-24T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 28,
+      "date": "2025-12-24T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 29,
+      "date": "2025-12-24T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 30,
+      "date": "2025-12-25T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 31,
+      "date": "2025-12-25T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 32,
+      "date": "2026-01-01T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 33,
+      "date": "2026-01-01T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 34,
+      "date": "2026-01-01T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 35,
+      "date": "2026-01-25T18:20:11.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 36,
+      "date": "2026-01-31T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 37,
+      "date": "2026-01-31T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 5,
+      "draw": false
+    },
+    {
+      "id": 38,
+      "date": "2026-01-31T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 39,
+      "date": "2026-02-07T17:07:30.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 40,
+      "date": "2026-02-07T17:31:47.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 41,
+      "date": "2026-02-07T18:03:43.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 42,
+      "date": "2026-02-08T11:55:39.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 43,
+      "date": "2026-02-08T16:01:37.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 44,
+      "date": "2026-02-10T19:34:17.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 45,
+      "date": "2026-02-10T20:23:36.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 46,
+      "date": "2026-02-21T15:46:01.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 47,
+      "date": "2026-02-21T18:51:03.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 48,
+      "date": "2026-02-27T19:22:19.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 49,
+      "date": "2026-02-28T15:46:46.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 50,
+      "date": "2026-02-28T16:24:44.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 51,
+      "date": "2026-03-08T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 52,
+      "date": "2026-03-08T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 53,
+      "date": "2026-03-08T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 54,
+      "date": "2026-04-03T13:09:15.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 55,
+      "date": "2026-04-03T14:54:52.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 56,
+      "date": "2026-04-03T17:40:03.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 57,
+      "date": "2026-04-03T19:48:30.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 58,
+      "date": "2026-04-25T22:16:17.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 59,
+      "date": "2026-05-05T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 60,
+      "date": "2026-05-05T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 61,
+      "date": "2026-06-21T14:39:09.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 62,
+      "date": "2026-06-21T16:36:43.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 63,
+      "date": "2026-06-21T21:02:57.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 64,
+      "date": "2026-07-05T13:04:24.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 65,
+      "date": "2026-07-05T14:03:20.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 66,
+      "date": "2026-07-05T15:34:41.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 67,
+      "date": "2026-07-05T18:40:39.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 68,
+      "date": "2026-07-09T22:35:16.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 69,
+      "date": "2026-07-31T18:23:22.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 70,
+      "date": "2026-08-01T13:27:23.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 71,
+      "date": "2026-08-01T14:18:27.000",
+      "mode": "Commander",
+      "playerCount": 2,
+      "draw": false
+    },
+    {
+      "id": 72,
+      "date": "2026-08-02T14:55:35.000",
+      "mode": "Commander",
+      "playerCount": 3,
+      "draw": false
+    },
+    {
+      "id": 73,
+      "date": "2026-08-02T16:58:29.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 74,
+      "date": "2026-08-02T18:35:46.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 75,
+      "date": "2026-08-05T19:21:14.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 76,
+      "date": "2026-08-05T20:40:13.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 77,
+      "date": "2026-09-03T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    },
+    {
+      "id": 78,
+      "date": "2026-09-03T00:00:00.000",
+      "mode": "Commander",
+      "playerCount": 4,
+      "draw": false
+    }
+  ],
+  "participants": [
+    {
+      "id": 1,
+      "gameId": 1,
+      "player": "Mela",
+      "deck": "Flugpioniere",
+      "startPosition": 3,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 2,
+      "gameId": 1,
+      "player": "Andy",
+      "deck": "Final Fantasy Revival Trance",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 3,
+      "gameId": 1,
+      "player": "Florian",
+      "deck": "Gehiiiiirn!",
+      "startPosition": 4,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 4,
+      "gameId": 1,
+      "player": "Rico",
+      "deck": "Lhurgoyfs",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 5,
+      "gameId": 2,
+      "player": "Mela",
+      "deck": "Bloomburrow Family Matters",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 6,
+      "gameId": 2,
+      "player": "Andy",
+      "deck": "Vampires for lunch",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 7,
+      "gameId": 2,
+      "player": "Florian",
+      "deck": "Fallout Mutant Menace",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 8,
+      "gameId": 3,
+      "player": "Mela",
+      "deck": "Strixhaven Silverquill Statement",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 9,
+      "gameId": 3,
+      "player": "Andy",
+      "deck": "Tokens everywhere",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 10,
+      "gameId": 3,
+      "player": "Florian",
+      "deck": "The Ur",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 11,
+      "gameId": 4,
+      "player": "Mela",
+      "deck": "Innistrad Crimson Vow Spirit Squadron",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 12,
+      "gameId": 4,
+      "player": "Andy",
+      "deck": "Aetherdrift Living Energy",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 13,
+      "gameId": 4,
+      "player": "Florian",
+      "deck": "The Ur",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 14,
+      "gameId": 5,
+      "player": "Mela",
+      "deck": "Doctor Who Blast from the Past",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 15,
+      "gameId": 5,
+      "player": "Andy",
+      "deck": "Bloomburrow Animated Army",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 16,
+      "gameId": 5,
+      "player": "Florian",
+      "deck": "Don't Spell",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 17,
+      "gameId": 6,
+      "player": "Andy",
+      "deck": "Planeswalker Party",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 18,
+      "gameId": 6,
+      "player": "Mela",
+      "deck": "Doctor Who Paradox-Power",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 19,
+      "gameId": 6,
+      "player": "Rico",
+      "deck": "Schlangen, überall Schlangen!",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 20,
+      "gameId": 7,
+      "player": "Andy",
+      "deck": "Bloomburrow Animated Army",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 21,
+      "gameId": 7,
+      "player": "Florian",
+      "deck": "Felothar",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 22,
+      "gameId": 7,
+      "player": "Mela",
+      "deck": "Flugpioniere",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 23,
+      "gameId": 7,
+      "player": "Rico",
+      "deck": "Innistrad: Midnight Hunt Coven Counters",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 24,
+      "gameId": 8,
+      "player": "Andy",
+      "deck": "Final Fantasy Scions & Spellcraft",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 25,
+      "gameId": 8,
+      "player": "Florian",
+      "deck": "Don't Spell",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 26,
+      "gameId": 8,
+      "player": "Mela",
+      "deck": "Engel",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 27,
+      "gameId": 8,
+      "player": "Rico",
+      "deck": "Schlangen, überall Schlangen!",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 28,
+      "gameId": 9,
+      "player": "Andy",
+      "deck": "Final Fantasy Scions & Spellcraft",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 29,
+      "gameId": 9,
+      "player": "Florian",
+      "deck": "The Ur",
+      "startPosition": 3,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 30,
+      "gameId": 9,
+      "player": "Mela",
+      "deck": "Strixhaven Silverquill Statement",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 31,
+      "gameId": 9,
+      "player": "Rico",
+      "deck": "Phyexians",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 32,
+      "gameId": 10,
+      "player": "Andy",
+      "deck": "Bad Card Draw",
+      "startPosition": 4,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 33,
+      "gameId": 10,
+      "player": "Florian",
+      "deck": "Don't Spell",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 34,
+      "gameId": 10,
+      "player": "Andreas",
+      "deck": "Rattendeck",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 35,
+      "gameId": 10,
+      "player": "Mela",
+      "deck": "Engel",
+      "startPosition": 1,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 36,
+      "gameId": 11,
+      "player": "Andreas",
+      "deck": "Spell Slinger",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 37,
+      "gameId": 11,
+      "player": "Andy",
+      "deck": "Kotis Action",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 38,
+      "gameId": 11,
+      "player": "Florian",
+      "deck": "The Ur",
+      "startPosition": 4,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 39,
+      "gameId": 11,
+      "player": "Mela",
+      "deck": "Doctor Who Masters of Evil",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 40,
+      "gameId": 12,
+      "player": "Andreas",
+      "deck": "Spell Slinger",
+      "startPosition": 1,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 41,
+      "gameId": 12,
+      "player": "Andy",
+      "deck": "Final Fantasy Counter Blitz",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 42,
+      "gameId": 12,
+      "player": "Florian",
+      "deck": "Don't Spell",
+      "startPosition": 2,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 43,
+      "gameId": 12,
+      "player": "Mela",
+      "deck": "Doctor Who Timey-Wimey",
+      "startPosition": 4,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 44,
+      "gameId": 13,
+      "player": "Andy",
+      "deck": "Strixhaven Witherbloom Witchcraft",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 45,
+      "gameId": 13,
+      "player": "Florian",
+      "deck": "Fallout Hail, Ceasar",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 46,
+      "gameId": 13,
+      "player": "Mela",
+      "deck": "Doctor Who Paradox-Power",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 47,
+      "gameId": 14,
+      "player": "Andy",
+      "deck": "Final Fantasy Revival Trance",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 48,
+      "gameId": 14,
+      "player": "Florian",
+      "deck": "Felothar",
+      "startPosition": 4,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 49,
+      "gameId": 14,
+      "player": "Mela",
+      "deck": "Doctor Who Masters of Evil",
+      "startPosition": 3,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 50,
+      "gameId": 14,
+      "player": "Rico",
+      "deck": "Lhurgoyfs",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 51,
+      "gameId": 15,
+      "player": "Andy",
+      "deck": "Wer hat die Kokosnuss?",
+      "startPosition": 4,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 52,
+      "gameId": 15,
+      "player": "Florian",
+      "deck": "Fallout Mutant Menace",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 53,
+      "gameId": 15,
+      "player": "Mela",
+      "deck": "Doctor Who Masters of Evil",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 54,
+      "gameId": 15,
+      "player": "Rico",
+      "deck": "Schlangen, überall Schlangen!",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 55,
+      "gameId": 16,
+      "player": "Andy",
+      "deck": "Strixhaven Prismari Performance",
+      "startPosition": 1,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 56,
+      "gameId": 16,
+      "player": "Florian",
+      "deck": "Fallout Science!",
+      "startPosition": 4,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 57,
+      "gameId": 16,
+      "player": "Mela",
+      "deck": "Innistrad Crimson Vow Spirit Squadron",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 58,
+      "gameId": 16,
+      "player": "Rico",
+      "deck": "Phyexians",
+      "startPosition": 2,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 59,
+      "gameId": 17,
+      "player": "Andreas",
+      "deck": "Der gestiefelte Bär",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 60,
+      "gameId": 17,
+      "player": "Florian",
+      "deck": "Birbs!",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 61,
+      "gameId": 17,
+      "player": "Mela",
+      "deck": "Bloomburrow Family Matters",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 62,
+      "gameId": 18,
+      "player": "Andy",
+      "deck": "Vampires for lunch",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 63,
+      "gameId": 18,
+      "player": "Mela",
+      "deck": "You will be tapped",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 64,
+      "gameId": 19,
+      "player": "Andy",
+      "deck": "Monster Power",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 65,
+      "gameId": 19,
+      "player": "Mela",
+      "deck": "You will be tapped",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 66,
+      "gameId": 20,
+      "player": "Mela",
+      "deck": "Engel",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 67,
+      "gameId": 20,
+      "player": "Andy",
+      "deck": "Life gain & life loss",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 68,
+      "gameId": 21,
+      "player": "Mela",
+      "deck": "Bloomburrow Family Matters",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 69,
+      "gameId": 21,
+      "player": "Andy",
+      "deck": "Life gain & life loss",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 70,
+      "gameId": 22,
+      "player": "Mela",
+      "deck": "You will be tapped",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 71,
+      "gameId": 22,
+      "player": "Andy",
+      "deck": "Aetherdrift Living Energy",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 72,
+      "gameId": 23,
+      "player": "Mela",
+      "deck": "You will be tapped",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 73,
+      "gameId": 23,
+      "player": "Andy",
+      "deck": "Aetherdrift Living Energy",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 74,
+      "gameId": 24,
+      "player": "Andy",
+      "deck": "Life gain & life loss",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 75,
+      "gameId": 24,
+      "player": "Andreas",
+      "deck": "Der gestiefelte Bär",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 76,
+      "gameId": 24,
+      "player": "Florian",
+      "deck": "The Ur",
+      "startPosition": 1,
+      "placement": 5,
+      "won": false
+    },
+    {
+      "id": 77,
+      "gameId": 24,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 3,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 78,
+      "gameId": 24,
+      "player": "Stephan",
+      "deck": "Lord of the Rings Riders of Rohan",
+      "startPosition": 5,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 79,
+      "gameId": 25,
+      "player": "Andreas",
+      "deck": "Toph",
+      "startPosition": 5,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 80,
+      "gameId": 25,
+      "player": "Andy",
+      "deck": "Kotis Action",
+      "startPosition": 3,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 81,
+      "gameId": 25,
+      "player": "Florian",
+      "deck": "Birbs!",
+      "startPosition": 2,
+      "placement": 5,
+      "won": false
+    },
+    {
+      "id": 82,
+      "gameId": 25,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 4,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 83,
+      "gameId": 25,
+      "player": "Stephan",
+      "deck": "The Lost Caverns of Ixalan Explores of the deep",
+      "startPosition": 1,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 84,
+      "gameId": 26,
+      "player": "Florian",
+      "deck": "Fallout Mutant Menace",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 85,
+      "gameId": 26,
+      "player": "Andy",
+      "deck": "Life gain & life loss",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 86,
+      "gameId": 26,
+      "player": "Mela",
+      "deck": "You will be tapped",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 87,
+      "gameId": 27,
+      "player": "Florian",
+      "deck": "Felothar",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 88,
+      "gameId": 27,
+      "player": "Andy",
+      "deck": "Tokens everywhere",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 89,
+      "gameId": 27,
+      "player": "Mela",
+      "deck": "You will be tapped",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 90,
+      "gameId": 28,
+      "player": "Florian",
+      "deck": "Fallout Scrappy Survivors",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 91,
+      "gameId": 28,
+      "player": "Andy",
+      "deck": "Vampires for lunch",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 92,
+      "gameId": 28,
+      "player": "Mela",
+      "deck": "You will be tapped",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 93,
+      "gameId": 29,
+      "player": "Florian",
+      "deck": "Fallout Science!",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 94,
+      "gameId": 29,
+      "player": "Andy",
+      "deck": "Innistrad: Midnight Hunt Coven Counters",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 95,
+      "gameId": 29,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 96,
+      "gameId": 30,
+      "player": "Andy",
+      "deck": "Bloomburrow Squirreld Away",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 97,
+      "gameId": 30,
+      "player": "Florian",
+      "deck": "Gehiiiiirn!",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 98,
+      "gameId": 30,
+      "player": "Mela",
+      "deck": "Innistrad Crimson Vow Spirit Squadron",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 99,
+      "gameId": 31,
+      "player": "Florian",
+      "deck": "Fallout Science!",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 100,
+      "gameId": 31,
+      "player": "Andy",
+      "deck": "Final Fantasy Revival Trance",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 101,
+      "gameId": 31,
+      "player": "Mela",
+      "deck": "Innistrad Crimson Vow Spirit Squadron",
+      "startPosition": 1,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 102,
+      "gameId": 32,
+      "player": "Stephan",
+      "deck": "The Lost Caverns of Ixalan Explores of the deep",
+      "startPosition": 4,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 103,
+      "gameId": 32,
+      "player": "Florian",
+      "deck": "Banditen!",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 104,
+      "gameId": 32,
+      "player": "Mela",
+      "deck": "Flugpioniere",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 105,
+      "gameId": 32,
+      "player": "Andy",
+      "deck": "Monster Power",
+      "startPosition": 4,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 106,
+      "gameId": 33,
+      "player": "Stephan",
+      "deck": "Eshki",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 107,
+      "gameId": 33,
+      "player": "Florian",
+      "deck": "Birbs!",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 108,
+      "gameId": 33,
+      "player": "Mela",
+      "deck": "Flugpioniere",
+      "startPosition": 3,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 109,
+      "gameId": 33,
+      "player": "Andy",
+      "deck": "Wer hat die Kokosnuss?",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 110,
+      "gameId": 34,
+      "player": "Stephan",
+      "deck": "Lord of the Rings Riders of Rohan",
+      "startPosition": 3,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 111,
+      "gameId": 34,
+      "player": "Florian",
+      "deck": "Gehiiiiirn!",
+      "startPosition": 4,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 112,
+      "gameId": 34,
+      "player": "Mela",
+      "deck": "Doctor Who Blast from the Past",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 113,
+      "gameId": 35,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 1,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 114,
+      "gameId": 35,
+      "player": "Florian",
+      "deck": "Lorwyn Eclipsed Dance of the elements",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 115,
+      "gameId": 35,
+      "player": "Rico",
+      "deck": "Lhurgoyfs",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 116,
+      "gameId": 35,
+      "player": "Andy",
+      "deck": "Tokens everywhere",
+      "startPosition": 4,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 117,
+      "gameId": 36,
+      "player": "Florian",
+      "deck": "Gehiiiiirn!",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 118,
+      "gameId": 36,
+      "player": "Andy",
+      "deck": "Life gain & life loss",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 119,
+      "gameId": 36,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 120,
+      "gameId": 36,
+      "player": "Andreas",
+      "deck": "Toph",
+      "startPosition": 4,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 121,
+      "gameId": 37,
+      "player": "Florian",
+      "deck": "Fallout Science!",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 122,
+      "gameId": 37,
+      "player": "Andy",
+      "deck": "Strixhaven Prismari Performance",
+      "startPosition": 2,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 123,
+      "gameId": 37,
+      "player": "Mela",
+      "deck": "Claws out",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 124,
+      "gameId": 37,
+      "player": "Henning Fockenbrock",
+      "deck": "Altaïr",
+      "startPosition": 4,
+      "placement": 5,
+      "won": false
+    },
+    {
+      "id": 125,
+      "gameId": 37,
+      "player": "Andreas",
+      "deck": "Der gestiefelte Bär",
+      "startPosition": 5,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 126,
+      "gameId": 38,
+      "player": "Mela",
+      "deck": "You will be tapped",
+      "startPosition": 1,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 127,
+      "gameId": 38,
+      "player": "Andreas",
+      "deck": "Spaß Deck",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 128,
+      "gameId": 38,
+      "player": "Florian",
+      "deck": "Edge of Eternities World Shaper",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 129,
+      "gameId": 38,
+      "player": "Andy",
+      "deck": "Final Fantasy Revival Trance",
+      "startPosition": 4,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 130,
+      "gameId": 39,
+      "player": "Andy",
+      "deck": "Claws out",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 131,
+      "gameId": 39,
+      "player": "Mela",
+      "deck": "Monster Power",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 132,
+      "gameId": 40,
+      "player": "Andy",
+      "deck": "Claws out",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 133,
+      "gameId": 40,
+      "player": "Mela",
+      "deck": "Vampires for lunch",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 134,
+      "gameId": 41,
+      "player": "Andy",
+      "deck": "Vampires for lunch",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 135,
+      "gameId": 41,
+      "player": "Mela",
+      "deck": "Claws out",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 136,
+      "gameId": 42,
+      "player": "Andy",
+      "deck": "Bad Card Draw",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 137,
+      "gameId": 42,
+      "player": "Mela",
+      "deck": "Claws out",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 138,
+      "gameId": 43,
+      "player": "Andy",
+      "deck": "Claws out",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 139,
+      "gameId": 43,
+      "player": "Mela",
+      "deck": "Engel",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 140,
+      "gameId": 44,
+      "player": "Andy",
+      "deck": "Bad Card Draw",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 141,
+      "gameId": 44,
+      "player": "Mela",
+      "deck": "Engel",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 142,
+      "gameId": 45,
+      "player": "Andy",
+      "deck": "Bad Card Draw",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 143,
+      "gameId": 45,
+      "player": "Mela",
+      "deck": "Claws out",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 144,
+      "gameId": 46,
+      "player": "Andy",
+      "deck": "Final Fantasy Scions & Spellcraft",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 145,
+      "gameId": 46,
+      "player": "Florian",
+      "deck": "Gehiiiiirn!",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 146,
+      "gameId": 46,
+      "player": "Mela",
+      "deck": "Doctor Who Timey-Wimey",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 147,
+      "gameId": 47,
+      "player": "Andy",
+      "deck": "Innistrad: Midnight Hunt Coven Counters",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 148,
+      "gameId": 47,
+      "player": "Florian",
+      "deck": "Lorwyn Eclipsed Blight Curse",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 149,
+      "gameId": 47,
+      "player": "Mela",
+      "deck": "Doctor Who Paradox-Power",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 150,
+      "gameId": 48,
+      "player": "Andy",
+      "deck": "Turtle Power!",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 151,
+      "gameId": 48,
+      "player": "Mela",
+      "deck": "Bloomburrow Squirreld Away",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 152,
+      "gameId": 49,
+      "player": "Andy",
+      "deck": "Turtle Power!",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 153,
+      "gameId": 49,
+      "player": "Mela",
+      "deck": "Claws out",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 154,
+      "gameId": 50,
+      "player": "Andy",
+      "deck": "Turtle Power!",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 155,
+      "gameId": 50,
+      "player": "Mela",
+      "deck": "Engel",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 156,
+      "gameId": 51,
+      "player": "Andy",
+      "deck": "Life gain & life loss",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 157,
+      "gameId": 51,
+      "player": "Rico",
+      "deck": "Engel, Drachen und ein Dämon",
+      "startPosition": 2,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 158,
+      "gameId": 51,
+      "player": "Florian",
+      "deck": "Lorwyn Eclipsed Dance of the elements",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 159,
+      "gameId": 51,
+      "player": "Mela",
+      "deck": "You will be tapped",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 160,
+      "gameId": 52,
+      "player": "Andy",
+      "deck": "Turtle Power!",
+      "startPosition": 1,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 161,
+      "gameId": 52,
+      "player": "Rico",
+      "deck": "Engel, Drachen und ein Dämon",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 162,
+      "gameId": 52,
+      "player": "Florian",
+      "deck": "Lorwyn Eclipsed Blight Curse",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 163,
+      "gameId": 52,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 164,
+      "gameId": 53,
+      "player": "Andy",
+      "deck": "Wer hat die Kokosnuss?",
+      "startPosition": 1,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 165,
+      "gameId": 53,
+      "player": "Rico",
+      "deck": "Phyexians",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 166,
+      "gameId": 53,
+      "player": "Florian",
+      "deck": "Felothar",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 167,
+      "gameId": 53,
+      "player": "Mela",
+      "deck": "Claws out",
+      "startPosition": 4,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 168,
+      "gameId": 54,
+      "player": "Andy",
+      "deck": "Aetherdrift Living Energy",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 169,
+      "gameId": 54,
+      "player": "Florian",
+      "deck": "Don't Spell",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 170,
+      "gameId": 54,
+      "player": "Mela",
+      "deck": "Felothar",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 171,
+      "gameId": 54,
+      "player": "Rico",
+      "deck": "Schlangen, überall Schlangen!",
+      "startPosition": 4,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 172,
+      "gameId": 55,
+      "player": "Andy",
+      "deck": "Bloomburrow Animated Army",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 173,
+      "gameId": 55,
+      "player": "Rico",
+      "deck": "Engel, Drachen und ein Dämon",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 174,
+      "gameId": 55,
+      "player": "Florian",
+      "deck": "Edge of Eternals Counter Intelligence",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 175,
+      "gameId": 55,
+      "player": "Mela",
+      "deck": "Strixhaven Silverquill Statement",
+      "startPosition": 4,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 176,
+      "gameId": 56,
+      "player": "Andy",
+      "deck": "Strixhaven Witherbloom Witchcraft",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 177,
+      "gameId": 56,
+      "player": "Rico",
+      "deck": "Schlangen, überall Schlangen!",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 178,
+      "gameId": 56,
+      "player": "Florian",
+      "deck": "The Ur",
+      "startPosition": 3,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 179,
+      "gameId": 56,
+      "player": "Mela",
+      "deck": "Innistrad Crimson Vow Spirit Squadron",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 180,
+      "gameId": 57,
+      "player": "Andy",
+      "deck": "Tokens everywhere",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 181,
+      "gameId": 57,
+      "player": "Florian",
+      "deck": "Lorwyn Eclipsed Blight Curse",
+      "startPosition": 1,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 182,
+      "gameId": 57,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 183,
+      "gameId": 57,
+      "player": "Rico",
+      "deck": "Lhurgoyfs",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 184,
+      "gameId": 58,
+      "player": "Florian",
+      "deck": "The Ur",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 185,
+      "gameId": 58,
+      "player": "Andy",
+      "deck": "Final Fantasy Counter Blitz",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 186,
+      "gameId": 58,
+      "player": "Mela",
+      "deck": "Bloomburrow Family Matters",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 187,
+      "gameId": 59,
+      "player": "Andy",
+      "deck": "Strixhaven Silverquill Influence",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 188,
+      "gameId": 59,
+      "player": "Mela",
+      "deck": "Doctor Who Timey-Wimey",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 189,
+      "gameId": 59,
+      "player": "Florian",
+      "deck": "The Ur",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 190,
+      "gameId": 59,
+      "player": "Maiko Schmiel",
+      "deck": "Bloomburrow Animated Army",
+      "startPosition": 4,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 191,
+      "gameId": 60,
+      "player": "Andy",
+      "deck": "Engel",
+      "startPosition": 4,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 192,
+      "gameId": 60,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 1,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 193,
+      "gameId": 60,
+      "player": "Florian",
+      "deck": "Fallout Hail, Ceasar",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 194,
+      "gameId": 60,
+      "player": "Maiko Schmiel",
+      "deck": "Quintorius on steroids",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 195,
+      "gameId": 61,
+      "player": "Florian",
+      "deck": "Banditen!",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 196,
+      "gameId": 61,
+      "player": "Mela",
+      "deck": "Und do so",
+      "startPosition": 2,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 197,
+      "gameId": 61,
+      "player": "Andy",
+      "deck": "Tokens everywhere",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 198,
+      "gameId": 61,
+      "player": "Rico",
+      "deck": "Lhurgoyfs",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 199,
+      "gameId": 62,
+      "player": "Andy",
+      "deck": "Quintorius on steroids",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 200,
+      "gameId": 62,
+      "player": "Rico",
+      "deck": "Engel, Drachen und ein Dämon",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 201,
+      "gameId": 62,
+      "player": "Florian",
+      "deck": "Felothar",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 202,
+      "gameId": 62,
+      "player": "Mela",
+      "deck": "The Doctor's Who is Who",
+      "startPosition": 4,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 203,
+      "gameId": 63,
+      "player": "Mela",
+      "deck": "Und do so",
+      "startPosition": 1,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 204,
+      "gameId": 63,
+      "player": "Andy",
+      "deck": "Strixhaven Silverquill Influence",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 205,
+      "gameId": 63,
+      "player": "Rico",
+      "deck": "Schlangen, überall Schlangen!",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 206,
+      "gameId": 63,
+      "player": "Florian",
+      "deck": "The Ur",
+      "startPosition": 4,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 207,
+      "gameId": 64,
+      "player": "Mela",
+      "deck": "Strixhaven Silverquill Influence",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 208,
+      "gameId": 64,
+      "player": "Rico",
+      "deck": "Phyexians",
+      "startPosition": 2,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 209,
+      "gameId": 64,
+      "player": "Andy",
+      "deck": "Turtle Power!",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 210,
+      "gameId": 64,
+      "player": "Florian",
+      "deck": "Birbs!",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 211,
+      "gameId": 65,
+      "player": "Mela",
+      "deck": "Doctor Who Masters of Evil",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 212,
+      "gameId": 65,
+      "player": "Rico",
+      "deck": "Engel, Drachen und ein Dämon",
+      "startPosition": 2,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 213,
+      "gameId": 65,
+      "player": "Andy",
+      "deck": "Wer hat die Kokosnuss?",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 214,
+      "gameId": 65,
+      "player": "Florian",
+      "deck": "Lorwyn Eclipsed Blight Curse",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 215,
+      "gameId": 66,
+      "player": "Florian",
+      "deck": "Gehiiiiirn!",
+      "startPosition": 1,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 216,
+      "gameId": 66,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 217,
+      "gameId": 66,
+      "player": "Rico",
+      "deck": "Engel, Drachen und ein Dämon",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 218,
+      "gameId": 66,
+      "player": "Andy",
+      "deck": "Wer hat die Kokosnuss?",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 219,
+      "gameId": 67,
+      "player": "Andy",
+      "deck": "Planeswalker Party",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 220,
+      "gameId": 67,
+      "player": "Florian",
+      "deck": "Edge of Eternities World Shaper",
+      "startPosition": 2,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 221,
+      "gameId": 67,
+      "player": "Mela",
+      "deck": "Birbs!",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 222,
+      "gameId": 67,
+      "player": "Rico",
+      "deck": "Schlangen, überall Schlangen!",
+      "startPosition": 4,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 223,
+      "gameId": 68,
+      "player": "Christian",
+      "deck": "Ich ETB, ihr nix",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 224,
+      "gameId": 68,
+      "player": "Mirko",
+      "deck": "Lost Caverns of Ixalan Veloci-Ramp-Tor",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 225,
+      "gameId": 68,
+      "player": "Andy",
+      "deck": "Vampires for lunch",
+      "startPosition": 3,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 226,
+      "gameId": 68,
+      "player": "Mela",
+      "deck": "Und do so",
+      "startPosition": 4,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 227,
+      "gameId": 69,
+      "player": "Andy",
+      "deck": "Can't touch them",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 228,
+      "gameId": 69,
+      "player": "Mela",
+      "deck": "Dead or Alive",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 229,
+      "gameId": 70,
+      "player": "Andy",
+      "deck": "Monster Power",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 230,
+      "gameId": 70,
+      "player": "Mela",
+      "deck": "Dead or Alive",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 231,
+      "gameId": 71,
+      "player": "Andy",
+      "deck": "Turtle Power!",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 232,
+      "gameId": 71,
+      "player": "Mela",
+      "deck": "Claws out",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 233,
+      "gameId": 72,
+      "player": "Mela",
+      "deck": "Claws out",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 234,
+      "gameId": 72,
+      "player": "Florian",
+      "deck": "Return of the General",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 235,
+      "gameId": 72,
+      "player": "Andy",
+      "deck": "Bloomburrow Squirreld Away",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 236,
+      "gameId": 73,
+      "player": "Mela",
+      "deck": "Dead or Alive",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 237,
+      "gameId": 73,
+      "player": "Florian",
+      "deck": "Die unblockbare Flauschfraktion",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 238,
+      "gameId": 73,
+      "player": "Rico",
+      "deck": "Lhurgoyfs",
+      "startPosition": 3,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 239,
+      "gameId": 73,
+      "player": "Andy",
+      "deck": "Can't touch them",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 240,
+      "gameId": 74,
+      "player": "Florian",
+      "deck": "Die unblockbare Flauschfraktion",
+      "startPosition": 1,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 241,
+      "gameId": 74,
+      "player": "Rico",
+      "deck": "Engel, Drachen und ein Dämon",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 242,
+      "gameId": 74,
+      "player": "Andy",
+      "deck": "Kotis Action",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 243,
+      "gameId": 74,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 4,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 244,
+      "gameId": 75,
+      "player": "Maiko Schmiel",
+      "deck": "Edge of Eternals Counter Intelligence",
+      "startPosition": 1,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 245,
+      "gameId": 75,
+      "player": "Andy",
+      "deck": "Quintorius on steroids",
+      "startPosition": 2,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 246,
+      "gameId": 75,
+      "player": "Mela",
+      "deck": "You will be tapped",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 247,
+      "gameId": 75,
+      "player": "Florian",
+      "deck": "Lorwyn Eclipsed Blight Curse",
+      "startPosition": 4,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 248,
+      "gameId": 76,
+      "player": "Maiko Schmiel",
+      "deck": "Don't Spell",
+      "startPosition": 1,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 249,
+      "gameId": 76,
+      "player": "Andy",
+      "deck": "Life gain & life loss",
+      "startPosition": 2,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 250,
+      "gameId": 76,
+      "player": "Mela",
+      "deck": "Kerosin",
+      "startPosition": 3,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 251,
+      "gameId": 76,
+      "player": "Florian",
+      "deck": "The Ur",
+      "startPosition": 4,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 252,
+      "gameId": 77,
+      "player": "Christian",
+      "deck": "Atraxa",
+      "startPosition": 1,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 253,
+      "gameId": 77,
+      "player": "Steffen",
+      "deck": "Wolf-gang",
+      "startPosition": 2,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 254,
+      "gameId": 77,
+      "player": "Andy",
+      "deck": "Quintorius on steroids",
+      "startPosition": 3,
+      "placement": 1,
+      "won": true
+    },
+    {
+      "id": 255,
+      "gameId": 77,
+      "player": "Mela",
+      "deck": "Dead or Alive",
+      "startPosition": 4,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 256,
+      "gameId": 78,
+      "player": "Mela",
+      "deck": "Claws out",
+      "startPosition": 1,
+      "placement": 2,
+      "won": false
+    },
+    {
+      "id": 257,
+      "gameId": 78,
+      "player": "Christian",
+      "deck": "Atraxa",
+      "startPosition": 2,
+      "placement": 4,
+      "won": false
+    },
+    {
+      "id": 258,
+      "gameId": 78,
+      "player": "Steffen",
+      "deck": "Der weise Mottenmann",
+      "startPosition": 3,
+      "placement": 3,
+      "won": false
+    },
+    {
+      "id": 259,
+      "gameId": 78,
+      "player": "Andy",
+      "deck": "Bad Card Draw",
+      "startPosition": 4,
+      "placement": 1,
+      "won": true
+    }
+  ]
+}

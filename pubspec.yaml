@@ -1,0 +1,166 @@
+name: track_and_play
+description: "Track & Play - Partien, Spieler und Decks erfassen und auswerten."
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^3.0.3
+
+  # Lokale Datenbank
+  drift: ^2.29.0
+  drift_flutter: ^0.2.7
+  path_provider: ^2.1.5
+
+  # Datei-Export/-Import
+  file_picker: ^10.3.7
+  share_plus: ^12.0.1
+  archive: ^4.0.7
+
+  # QR-Code-Austausch (schnelles Teilen einzelner Spieler/Decks ohne Datei)
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.0.1
+
+  # JSON (de)serialisierung fuer Export-/Import-Bundles laeuft ueber
+  # dart:convert (jsonEncode/jsonDecode) + die von Drift generierten
+  # toJson()/fromJson()-Methoden - kein Zusatzpaket noetig.
+
+  # UI / Darstellung
+  cupertino_icons: ^1.0.8
+  fl_chart: ^1.1.1
+  mana_icons_flutter: ^1.18.0
+  animated_toggle_switch: ^0.8.7
+  intl: ^0.19.0
+  url_launcher: ^6.1.8
+  # "Vault & Foil"-Theme (Cinzel/Manrope/IBM Plex Mono), siehe
+  # lib/core/theme/app_theme.dart und ARCHITECTURE.md "Bekannte Fixes".
+  google_fonts: ^6.2.1
+
+  # Einfache Key-Value-Einstellungen (Solo-/Gruppen-Modus, aktiver "Ich"-Spieler)
+  shared_preferences: ^2.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.13
+  drift_dev: ^2.29.0
+  flutter_lints: ^5.0.0
+  flutter_native_splash: ^2.4.7
+
+# Konfiguration fuer `dart run flutter_native_splash:create` - 1:1 von
+# mtg_stats_tracker uebernommen (gleiches Icon, schwarzer Hintergrund),
+# siehe ARCHITECTURE.md "Bekannte Fixes". Die generierten Ausgabedateien
+# sind bereits eingecheckt (Android drawable-*/values-*) - dieser Block
+# ist nur relevant, falls der Generator spaeter erneut laufen soll (z. B.
+# nach einem Icon-Wechsel). iOS bewusst ausgenommen (wie im Vorgaenger-
+# projekt) - dort bleibt der Flutter-Standard-Splash.
+flutter_native_splash:
+  color: "#0B1E26"
+  image: assets/icon/tap_icon_fg.png
+  android: true
+  ios: false
+  android_12:
+    color: "#0B1E26"
+    image: assets/icon/tap_icon_fg.png
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icon/tap_icon_fg.png
+    - assets/images/classic_card_style.jpg
+    - assets/images/color_identity_card_style.jpg
+    - assets/badges/streak/02_streak.png
+    - assets/badges/streak/03_streak.png
+    - assets/badges/streak/05_streak.png
+    - assets/badges/streak/10_streak.png
+    - assets/badges/matches/100matches.png
+    - assets/badges/matches/200matches.png
+    - assets/badges/matches/500matches.png
+    - assets/badges/matches/1000matches.png
+    - assets/badges/wins/10wins.png
+    - assets/badges/wins/20wins.png
+    - assets/badges/wins/50wins.png
+    - assets/badges/wins/100wins.png
+    - assets/badges/wins/200wins.png
+    - assets/badges/wins/500wins.png
+    - assets/badges/wins/1000wins.png
+    - assets/badges/special/firstStrike.png
+    - assets/badges/special/firstwin.png
+    - assets/badges/special/grandios.png
+    - assets/badges/special/newbie.png
+    - assets/badges/special/weekend.png
+    - assets/badges/special/shame.png
+    - assets/badges/special/win_five_diff_decks.png
+    - assets/badges/special/win_ten_diff_decks.png
+    - assets/badges/special/win_twentyfive_diff_decks.png
+    - assets/badges/colors/mono/w.png
+    - assets/badges/colors/mono/w_champ.png
+    - assets/badges/colors/mono/w_master.png
+    - assets/badges/colors/mono/u.png
+    - assets/badges/colors/mono/u_champ.png
+    - assets/badges/colors/mono/u_master.png
+    - assets/badges/colors/mono/b.png
+    - assets/badges/colors/mono/b_champ.png
+    - assets/badges/colors/mono/b_master.png
+    - assets/badges/colors/mono/r.png
+    - assets/badges/colors/mono/r_champ.png
+    - assets/badges/colors/mono/r_master.png
+    - assets/badges/colors/mono/g.png
+    - assets/badges/colors/mono/g_champ.png
+    - assets/badges/colors/mono/g_master.png
+    - assets/badges/colors/two/wu.png
+    - assets/badges/colors/two/wb.png
+    - assets/badges/colors/two/wr.png
+    - assets/badges/colors/two/wg.png
+    - assets/badges/colors/two/ub.png
+    - assets/badges/colors/two/ug.png
+    - assets/badges/colors/two/ur.png
+    - assets/badges/colors/two/br.png
+    - assets/badges/colors/two/bg.png
+    - assets/badges/colors/two/rg.png
+    - assets/badges/colors/three/brg.png
+    - assets/badges/colors/three/ubg.png
+    - assets/badges/colors/three/ubr.png
+    - assets/badges/colors/three/urg.png
+    - assets/badges/colors/three/wbg.png
+    - assets/badges/colors/three/wbr.png
+    - assets/badges/colors/three/wrg.png
+    - assets/badges/colors/three/wub.png
+    - assets/badges/colors/three/wug.png
+    - assets/badges/colors/three/wur.png
+    - assets/badges/colors/four/ubrg.png
+    - assets/badges/colors/four/wbrg.png
+    - assets/badges/colors/four/wubg.png
+    - assets/badges/colors/four/wubr.png
+    - assets/badges/colors/four/wurg.png
+    - assets/badges/colors/wubrg.png
+    - assets/badges/colors/n.png
+    - assets/badges/weekday/monday02.png
+    - assets/badges/weekday/monday03.png
+    - assets/badges/weekday/monday05.png
+    - assets/badges/weekday/tuesday02.png
+    - assets/badges/weekday/tuesday03.png
+    - assets/badges/weekday/tuesday05.png
+    - assets/badges/weekday/wednesday02.png
+    - assets/badges/weekday/wednesday03.png
+    - assets/badges/weekday/wednesday05.png
+    - assets/badges/weekday/thursday02.png
+    - assets/badges/weekday/thursday03.png
+    - assets/badges/weekday/thursday05.png
+    - assets/badges/weekday/friday02.png
+    - assets/badges/weekday/friday03.png
+    - assets/badges/weekday/friday05.png
+    - assets/badges/weekday/saturday02.png
+    - assets/badges/weekday/saturday03.png
+    - assets/badges/weekday/saturday05.png
+    - assets/badges/weekday/sunday02.png
+    - assets/badges/weekday/sunday03.png
+    - assets/badges/weekday/sunday05.png
