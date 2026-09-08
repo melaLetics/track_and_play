@@ -418,6 +418,26 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
 
 ## Bekannte Fixes
 
+- **Export "In Ordner speichern" schlug auf Android im Downloads-
+  Ordner fehl** (Nutzer-Bugreport auf physischem Android-Handy: "Das
+  schlug fehl, da es den Ordner nicht gäbe"). Ursache in
+  `ExportWizardScreen._saveToFolder`: `FilePicker.platform.saveFile(...)`
+  schreibt die Bytes auf Android/iOS bereits selbst (Storage Access
+  Framework); der zurückgelieferte `outputPath` ist dort - anders als
+  auf Desktop - danach kein per `dart:io` nutzbarer echter
+  Dateisystempfad mehr (insbesondere bei SAF-Sonderzielen wie
+  "Downloads"). Der Code hat trotzdem unbedingt zusätzlich
+  `File(outputPath).exists()` geprüft und bei `false` per
+  `writeAsBytes` nachzuschreiben versucht - dieser fälschlich
+  ausgelöste Zweitschreibversuch auf einen ungültigen Pfad war die
+  Fehlerquelle, obwohl der Export vom Picker selbst bereits
+  erfolgreich gespeichert worden war. Fix: der `exists()`/
+  `writeAsBytes()`-Fallback läuft jetzt nur noch, wenn
+  `Platform.isWindows || Platform.isLinux || Platform.isMacOS`
+  (und `!kIsWeb`) - also ausschließlich dort, wo `saveFile` laut
+  eigener Doku nur den Pfad liefert, ohne selbst zu schreiben. Auf
+  Android/iOS/Web wird dem Picker-Schreibvorgang jetzt vertraut.
+
 - **Suche/Filter in der Partien-Übersicht** (Nutzerwunsch: "nach
   Spieler, Commander oder Deck suchen" sowie "nach Modus filtern").
   Neu in `GamesRepository`: `GameListItem` (Partie + rohe,

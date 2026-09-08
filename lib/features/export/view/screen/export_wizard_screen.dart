@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -148,7 +149,10 @@ class _ExportWizardScreenState extends ConsumerState<ExportWizardScreen> {
   /// Datei anhand von [bytes] direkt vom Picker geschrieben, auf
   /// Desktop-Plattformen liefert saveFile nur den gewählten Pfad zurück
   /// und die Datei muss selbst geschrieben werden - daher der
-  /// `exists()`-Fallback unten, der beide Fälle abdeckt.
+  /// `exists()`-Fallback unten, der NUR auf Desktop greift (siehe
+  /// Kommentar dort - auf Android/iOS ist der zurückgelieferte Pfad kein
+  /// per dart:io nutzbarer Dateisystempfad mehr, z. B. bei Zielen wie
+  /// "Downloads").
   Future<void> _saveToFolder(bool trackOtherPlayers) async {
     setState(() => _isExporting = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -171,9 +175,23 @@ class _ExportWizardScreenState extends ConsumerState<ExportWizardScreen> {
         // Nutzer hat den Dialog abgebrochen.
         return;
       }
-      final file = File(outputPath);
-      if (!await file.exists()) {
-        await file.writeAsBytes(bytes);
+      // Nur auf Desktop-Plattformen liefert saveFile lediglich den
+      // gewaehlten Pfad zurueck, ohne die Datei zu schreiben - dort muss
+      // sie hier per dart:io nachtraeglich geschrieben werden. Auf
+      // Android/iOS hat der Picker die Bytes bereits selbst geschrieben
+      // (Storage Access Framework); der zurueckgelieferte outputPath ist
+      // dort kein per dart:io nutzbarer Dateisystempfad mehr (z. B. bei
+      // Zielen wie "Downloads") - ein zusaetzlicher File(outputPath)-
+      // Zugriff schlaegt dann mit "Ordner nicht gefunden" fehl, obwohl
+      // der Export bereits erfolgreich gespeichert wurde. Daher hier
+      // NICHT mehr pauschal versuchen, sondern nur auf Desktop.
+      final isDesktop = !kIsWeb &&
+          (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+      if (isDesktop) {
+        final file = File(outputPath);
+        if (!await file.exists()) {
+          await file.writeAsBytes(bytes);
+        }
       }
       if (mounted) {
         messenger.showSnackBar(
