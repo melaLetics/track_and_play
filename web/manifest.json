@@ -1,6 +1,6 @@
 {
-    "name": "track_and_play",
-    "short_name": "track_and_play",
+    "name": "TAP",
+    "short_name": "TAP",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -418,6 +418,27 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
 
 ## Bekannte Fixes
 
+- **App-Anzeigename zu "TAP" geändert** (Nutzerwunsch: die App
+  erschien auf dem Homescreen/Desktop noch mit dem technischen
+  Projektnamen "track_and_play" statt einem sprechenden Namen).
+  Geändert wurden ausschließlich die für den Nutzer sichtbaren
+  Anzeige-Strings je Plattform - interne IDs bleiben unverändert,
+  um Build-Konfiguration/Signierung/Store-Einträge nicht zu
+  gefährden: `android:label` in `AndroidManifest.xml`;
+  `CFBundleDisplayName`/`CFBundleName` in `ios/Runner/Info.plist`;
+  `name`/`short_name` in `web/manifest.json` sowie `<title>` in
+  `web/index.html`; `PRODUCT_NAME` in
+  `macos/Runner/Configs/AppInfo.xcconfig`; `FileDescription`/
+  `ProductName` in `windows/runner/Runner.rc` sowie der Fenstertitel
+  in `windows/runner/main.cpp`; Fenstertitel (GTK-Headerbar und
+  Fallback) in `linux/runner/my_application.cc`. Unverändert
+  geblieben (bewusst, da interne Identifier statt Anzeigename):
+  Android `applicationId`, iOS/macOS `PRODUCT_BUNDLE_IDENTIFIER`,
+  Linux `APPLICATION_ID`, alle `BINARY_NAME`/Executable-Namen
+  (Windows `.exe`, Linux-Binary), `pubspec.yaml`-Paketname sowie
+  Windows `InternalName`/`OriginalFilename` (referenzieren weiter
+  den unveränderten Datei-/Modulnamen `track_and_play`).
+
 - **Export "In Ordner speichern" schlug auf Android im Downloads-
   Ordner fehl** (Nutzer-Bugreport auf physischem Android-Handy: "Das
   schlug fehl, da es den Ordner nicht gäbe"). Ursache in
