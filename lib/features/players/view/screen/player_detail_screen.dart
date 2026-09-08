@@ -274,6 +274,7 @@ class _PlayerDetailScreenState extends ConsumerState<PlayerDetailScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'player_detail_fab',
         onPressed: () => showDeckFormDialog(context, ownerPlayerId: playerId),
         tooltip: 'Neues Deck',
         child: const Icon(Icons.add),

@@ -99,6 +99,20 @@ class SelfGameStatsRow {
   });
 }
 
+/// Eine Partie samt roher, durchsuchbarer Begriffe (Spielernamen -
+/// bekannt oder anonym -, Deckname, Commander/Zweit-Commander aller
+/// Teilnehmer) - Grundlage fuer die Suche in der Partien-Uebersicht
+/// (siehe games_overview_screen.dart, Nutzerwunsch "nach Spieler,
+/// Commander oder Deck suchen"). [searchTerms] ist bewusst roh (nicht
+/// kleingeschrieben) - der Vergleich passiert erst beim Filtern in
+/// der UI.
+class GameListItem {
+  final Game game;
+  final List<String> searchTerms;
+
+  const GameListItem({required this.game, required this.searchTerms});
+}
+
 class GamesRepository {
   final AppDatabase db;
 
@@ -119,6 +133,67 @@ class GamesRepository {
       query.limit(limit);
     }
     return query.watch();
+  }
+
+  /// Wie [watchRecentGames] (unbegrenzt, neueste zuerst), aber jede
+  /// Partie zusaetzlich mit den durchsuchbaren Begriffen ihrer
+  /// Teilnehmer angereichert (siehe [GameListItem]). LEFT JOIN ab
+  /// Games (nicht ab GameParticipants), damit auch eine Partie ganz
+  /// ohne Teilnehmer nicht aus der Liste faellt.
+  Stream<List<GameListItem>> watchGamesWithSearchTerms() {
+    final query = db.select(db.games).join([
+      leftOuterJoin(
+        db.gameParticipants,
+        db.gameParticipants.gameId.equalsExp(db.games.id),
+      ),
+      leftOuterJoin(
+        db.players,
+        db.players.id.equalsExp(db.gameParticipants.playerId),
+      ),
+      leftOuterJoin(
+        db.decks,
+        db.decks.id.equalsExp(db.gameParticipants.deckId),
+      ),
+    ]);
+
+    return query.watch().map((rows) {
+      final byGame = <int, List<TypedResult>>{};
+      for (final row in rows) {
+        final gameId = row.readTable(db.games).id;
+        byGame.putIfAbsent(gameId, () => []).add(row);
+      }
+
+      final result = <GameListItem>[];
+      for (final rowsForGame in byGame.values) {
+        final game = rowsForGame.first.readTable(db.games);
+        final terms = <String>[];
+        for (final row in rowsForGame) {
+          final participant = row.readTableOrNull(db.gameParticipants);
+          if (participant == null) continue;
+          final player = row.readTableOrNull(db.players);
+          final deck = row.readTableOrNull(db.decks);
+          if (player != null) terms.add(player.name);
+          final anonymousLabel = participant.anonymousLabel;
+          if (anonymousLabel != null && anonymousLabel.isNotEmpty) {
+            terms.add(anonymousLabel);
+          }
+          if (deck != null) {
+            terms.add(deck.name);
+            final commander = deck.commanderName;
+            if (commander != null && commander.isNotEmpty) {
+              terms.add(commander);
+            }
+            final commander2 = deck.secondCommanderName;
+            if (commander2 != null && commander2.isNotEmpty) {
+              terms.add(commander2);
+            }
+          }
+        }
+        result.add(GameListItem(game: game, searchTerms: terms));
+      }
+      result.sort((a, b) => b.game.playedAt.compareTo(a.game.playedAt));
+      return result;
+    });
   }
 
   Stream<Game?> watchGameById(int gameId) {

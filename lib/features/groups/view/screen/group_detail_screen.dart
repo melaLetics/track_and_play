@@ -152,6 +152,7 @@ class GroupDetailScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'group_detail_fab',
         onPressed: () => showDialog<void>(
           context: context,
           builder: (_) => _AddMemberDialog(groupId: groupId),

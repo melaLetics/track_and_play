@@ -14,6 +14,16 @@ final recentGamesProvider = StreamProvider<List<Game>>((ref) {
   return repo.watchRecentGames();
 });
 
+/// Fuer die Partien-Uebersicht (siehe games_overview_screen.dart) -
+/// wie [recentGamesProvider], aber inklusive der durchsuchbaren
+/// Begriffe je Partie (Spieler/Commander/Deck), siehe GameListItem.
+final gamesWithSearchTermsProvider = StreamProvider<List<GameListItem>>((
+  ref,
+) {
+  final repo = ref.watch(gamesRepositoryProvider);
+  return repo.watchGamesWithSearchTerms();
+});
+
 final gameByIdProvider = StreamProvider.family<Game?, int>((ref, gameId) {
   final repo = ref.watch(gamesRepositoryProvider);
   return repo.watchGameById(gameId);

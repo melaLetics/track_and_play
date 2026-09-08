@@ -232,6 +232,7 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'live_game_fab',
         onPressed: _finishing ? null : _finishGame,
         icon: const Icon(Icons.flag),
         label: const Text('Partie beenden'),

@@ -418,6 +418,70 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
 
 ## Bekannte Fixes
 
+- **Suche/Filter in der Partien-Übersicht** (Nutzerwunsch: "nach
+  Spieler, Commander oder Deck suchen" sowie "nach Modus filtern").
+  Neu in `GamesRepository`: `GameListItem` (Partie + rohe,
+  durchsuchbare Begriffe) und `watchGamesWithSearchTerms()` - LEFT
+  JOIN ab Games (nicht ab GameParticipants, damit eine Partie ganz
+  ohne Teilnehmer nicht aus der Liste faellt), sammelt je Partie
+  Spielernamen (bekannt via Players.name UND anonym via
+  GameParticipants.anonymousLabel), Decknamen sowie Commander-/
+  Zweit-Commander-Namen aller Teilnehmer ein. Neuer Provider
+  `gamesWithSearchTermsProvider` (games_repository_provider.dart).
+  `GamesOverviewScreen` von `ConsumerWidget` auf
+  `ConsumerStatefulWidget` umgestellt (analog zur Deck-Suche in
+  `PlayerDetailScreen`): Such-Symbol blendet Suchfeld + Modus-
+  Dropdown ein, die Filterung (Text-Teilstring-Suche ueber
+  `searchTerms`, UND-verknuepft mit optionalem Modus-Filter) laeuft
+  rein lokal, bevor die bereits vorhandene Jahr/Monat-Gruppierung
+  greift. `recentGamesProvider`/`watchRecentGames` bleiben unveraendert
+  bestehen (aktuell ohne eigenen Aufrufer mehr, aber als einfache
+  "alle Partien ohne Suchbegriffe"-Abfrage fuer eine moegliche
+  kuenftige Stelle nicht entfernt).
+
+- **Hero-Fehler "multiple heroes ... default FloatingActionButton
+  tag"** (Nutzer-Bugreport: Absturz-Log beim Öffnen einer
+  historischen Two-Headed-Giant-Partie). Ursache: ALLE
+  `FloatingActionButton`s in der App verzichten auf ein explizites
+  `heroTag`, wodurch Flutter jedem intern denselben
+  `_defaultHeroTag` gibt. `MainShell` haelt via `IndexedStack` alle
+  vier Tabs dauerhaft gemountet (bewusst so, siehe deren Klassendoku -
+  fuer den erhaltenen Scroll-Zustand), darunter der Decks-Tab
+  (`PlayerDetailScreen`, FAB "Neues Deck") UND der Partien-Tab
+  (`GamesOverviewScreen`, FAB "Neue Partie") - beide also gleichzeitig
+  im Baum, beide mit demselben Default-Tag. Sobald irgendeine
+  Navigation eine Hero-Flugsuche ausloest (z. B. `Navigator.push` auf
+  `GameDetailScreen` beim Antippen einer Partie), findet Flutter ZWEI
+  Heroes mit identischem Tag im selben Subtree und wirft die
+  Assertion - unabhaengig vom Partien-Modus, das 2HG-Beispiel des
+  Nutzers war vermutlich Zufall/erste Reproduktion, nicht die
+  eigentliche Ursache. Fix: alle fuenf `FloatingActionButton`s der
+  App (`games_overview_screen.dart`, `live_game_screen.dart`,
+  `groups_overview_screen.dart`, `group_detail_screen.dart`,
+  `player_detail_screen.dart`) haben jetzt ein festes, je Screen
+  eindeutiges `heroTag` (String-Literal, z. B.
+  'games_overview_fab') - damit koennen beliebig viele FABs
+  gleichzeitig gemountet sein, ohne zu kollidieren.
+
+- **Partien-Übersicht nach Jahr/Monat gruppiert** (Nutzerwunsch,
+  angelehnt an mtg_stats_tracker - dort GameYearSection). Neu:
+  `lib/core/utils/month_names.dart` (`monthNameDe`, 1:1 aus
+  `core/globals.dart`/`monthName` des Vorgaengers uebernommen, aber
+  bewusst als fest hinterlegte Liste statt ueber intl/DateFormat mit
+  Locale-Initialisierung - `intl` wird in dieser App bislang nirgends
+  fuer Datumsformatierung genutzt). `games_overview_screen.dart` hat
+  eine neue private `_GameYearSection` (Card + ExpansionTile pro
+  Jahr, `initiallyExpanded: true`, mit Partien-Anzahl im Titel), die
+  darin je enthaltenen Monat wiederum als ExpansionTile zeigt (ohne
+  `initiallyExpanded`, also zunaechst eingeklappt - wie im Vorbild)
+  mit der bestehenden `_GameListTile` pro Partie darunter. Die
+  Gruppierung selbst (`Map<int, Map<int, List<Game>>>` nach Jahr dann
+  Monat, beide Ebenen absteigend sortiert) passiert direkt im
+  `data:`-Builder von `GamesOverviewScreen`, die Partien-Reihenfolge
+  innerhalb eines Monats bleibt die von `watchRecentGames` gelieferte
+  (neueste zuerst). Ersetzt die bisherige flache
+  `ListView.builder`-Liste.
+
 - **Partien-Übersicht zeigte nur die letzten 50** (Nutzer-Feedback:
   im Partien-Tab fehlten aeltere Partien, obwohl der Klassenkommentar
   von `GamesOverviewScreen` "Historie ALLER erfassten Partien"

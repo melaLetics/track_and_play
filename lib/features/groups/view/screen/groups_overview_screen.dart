@@ -64,6 +64,7 @@ class _GroupsOverviewScreenState extends ConsumerState<GroupsOverviewScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'groups_overview_fab',
         onPressed: () => showDialog<void>(
           context: context,
           builder: (_) => const _CreateGroupDialog(),
