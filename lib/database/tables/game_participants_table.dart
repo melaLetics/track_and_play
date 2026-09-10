@@ -40,4 +40,11 @@ class GameParticipants extends Table {
   /// da jeder einzeln am Zug ist. Wird vor Spielbeginn festgelegt
   /// (siehe GameSetupScreen) und über den Validator geprüft.
   IntColumn get startPosition => integer().nullable()();
+
+  /// Sitzplatz am Tisch für die Live-Ansicht (siehe TableSide) - rein
+  /// für die Bildschirm-Anordnung/-Drehung in LiveGameScreen, hat mit
+  /// der spielrelevanten Zugreihenfolge (siehe startPosition) nichts
+  /// zu tun. Nur bei Live-Erfassung gesetzt, wird vor Spielbeginn im
+  /// Setup über den Tisch-Diagramm-Wähler festgelegt.
+  TextColumn get tableSide => textEnum<TableSide>().nullable()();
 }

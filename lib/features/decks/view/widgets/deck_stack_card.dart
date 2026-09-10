@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/utils/mana_colors.dart';
 
@@ -18,9 +19,17 @@ import '../../../../core/utils/mana_colors.dart';
 /// 1:1 in der Funktion (Titel/Untertitel/Trailing/Tap sowie das
 /// Abdunkeln archivierter Decks via [archived]), nur optisch
 /// aufbereitet.
+///
+/// [link] (Nutzerwunsch): optionale dritte Zeile unter [subtitle] -
+/// nur sichtbar, wenn ein Deck-Link hinterlegt ist (siehe
+/// Decks.deckLink/DeckFormDialog). Eigener Tap-Bereich (siehe
+/// [_openLink]), unabhängig vom card-weiten [onTap] (der weiterhin
+/// den Bearbeiten-Dialog öffnet) - funktioniert wie ein Trailing-
+/// Icon-Button innerhalb derselben Karte, siehe [trailing].
 class DeckStackCard extends StatelessWidget {
   final String name;
   final String? subtitle;
+  final String? link;
   final String colorIdentity;
   final bool archived;
   final Widget? trailing;
@@ -30,6 +39,7 @@ class DeckStackCard extends StatelessWidget {
     super.key,
     required this.name,
     this.subtitle,
+    this.link,
     required this.colorIdentity,
     this.archived = false,
     this.trailing,
@@ -155,6 +165,35 @@ class DeckStackCard extends StatelessWidget {
                                           ),
                                     ),
                                   ],
+                                  if (link != null && link!.isNotEmpty) ...[
+                                    const SizedBox(height: 3),
+                                    InkWell(
+                                      onTap: () => _openLink(context, link!),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.link,
+                                            size: 14,
+                                            color: scheme.primary,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Flexible(
+                                            child: Text(
+                                              link!,
+                                              style: theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                    color: scheme.primary,
+                                                    decoration: TextDecoration
+                                                        .underline,
+                                                  ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -194,5 +233,35 @@ class DeckStackCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Öffnet [rawLink] im externen Browser (Nutzerwunsch: Deck-Link
+  /// muss tatsächlich funktionieren, nicht nur angezeigt werden).
+  /// Ergänzt bei Bedarf `https://` (Nutzer geben Links oft ohne
+  /// Schema ein, z. B. "moxfield.com/decks/..." statt
+  /// "https://moxfield.com/decks/..." - `Uri.parse` allein würde das
+  /// sonst als relativen Pfad ohne Host interpretieren und
+  /// `launchUrl` schlaegt fehl). `messenger` wird bewusst VOR dem
+  /// `await` geholt (nicht danach per `context` erneut), damit kein
+  /// möglicherweise nicht mehr gemountetes `BuildContext` nach der
+  /// asynchronen Lücke verwendet wird.
+  Future<void> _openLink(BuildContext context, String rawLink) async {
+    final trimmed = rawLink.trim();
+    if (trimmed.isEmpty) return;
+    final hasScheme = Uri.tryParse(trimmed)?.hasScheme ?? false;
+    final uri = Uri.tryParse(hasScheme ? trimmed : 'https://$trimmed');
+    final messenger = ScaffoldMessenger.of(context);
+    if (uri == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Ungültiger Deck-Link.')),
+      );
+      return;
+    }
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Konnte Link nicht öffnen: $trimmed')),
+      );
+    }
   }
 }

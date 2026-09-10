@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../../database/app_database.dart';
 import '../../model/game_participant_draft.dart';
+import '../../model/live_participant.dart';
 
 /// Aufbereitete Teilnehmer-Zeile für die Anzeige: löst bekannte
 /// Spieler/Decks per Join zu Namen auf, anonyme Teilnehmer bleiben bei
@@ -430,8 +431,91 @@ class GamesRepository {
             startingLife: Value(p.startingLife),
             startPosition: Value(p.startPosition),
             placement: Value(p.placement),
+            tableSide: Value(p.tableSide),
           ),
         );
+  }
+
+  /// Baut die Teilnehmerliste zum FORTSETZEN einer noch laufenden
+  /// Live-Partie (Nutzerwunsch: aus der Partien-Übersicht/-Detailseite
+  /// heraus eine "hängengebliebene" Live-Partie - z. B. nach
+  /// Verlassen des Live-Screens per Zurück-Taste - weiter erfassen
+  /// oder abschließen können). Liefert dieselbe Struktur wie die
+  /// Teilnehmer beim erstmaligen Start ([LiveParticipant] über
+  /// [startLiveGame]), aber mit dem AKTUELLEN Lebenspunkte-Stand statt
+  /// der ursprünglichen Start-Lebenspunkte: pro Teilnehmer wird das
+  /// zeitlich letzte LifeEvent herangezogen (resultingLife), ohne
+  /// eigenes Event bleibt es bei GameParticipants.startingLife.
+  Future<List<LiveParticipant>> loadLiveParticipants(int gameId) async {
+    final query = db.select(db.gameParticipants).join([
+      leftOuterJoin(
+        db.players,
+        db.players.id.equalsExp(db.gameParticipants.playerId),
+      ),
+    ])
+      ..where(db.gameParticipants.gameId.equals(gameId))
+      ..orderBy([
+        OrderingTerm(expression: db.gameParticipants.startPosition),
+      ]);
+    final rows = await query.get();
+
+    final result = <LiveParticipant>[];
+    for (final row in rows) {
+      final participant = row.readTable(db.gameParticipants);
+      final player = row.readTableOrNull(db.players);
+      final lastEvent = await (db.select(db.lifeEvents)
+            ..where((e) => e.gameParticipantId.equals(participant.id))
+            ..orderBy([
+              (e) => OrderingTerm(
+                    expression: e.occurredAt,
+                    mode: OrderingMode.desc,
+                  ),
+            ])
+            ..limit(1))
+          .getSingleOrNull();
+      result.add(
+        LiveParticipant(
+          gameParticipantId: participant.id,
+          displayName: player?.name ??
+              participant.anonymousLabel ??
+              'Unbekannter Spieler',
+          startingLife:
+              lastEvent?.resultingLife ?? participant.startingLife ?? 0,
+          team: participant.team,
+          startPosition: participant.startPosition,
+          tableSide: participant.tableSide,
+        ),
+      );
+    }
+    return result;
+  }
+
+  /// Bricht eine noch laufende Live-Partie vollständig ab (Nutzerwunsch:
+  /// Gegenstück zum Fortsetzen oben - eine "hängengebliebene" Partie
+  /// muss sich auch verwerfen lassen). Löscht alle LifeEvents ihrer
+  /// Teilnehmer, die Teilnehmer selbst und zuletzt die Partie -
+  /// unwiderruflich. Bewusst KEIN "soft delete"/eigener Status: eine
+  /// abgebrochene Partie hat keinerlei Aussagewert, der aufbewahrt
+  /// werden müsste (sie wäre wegen status == inProgress ohnehin nie in
+  /// watchSelfGameStats/die Statistik eingeflossen). Keine Drift-
+  /// Kaskaden auf den Tabellen konfiguriert, daher hier manuell in der
+  /// richtigen Reihenfolge (LifeEvents -> GameParticipants -> Games).
+  Future<void> cancelLiveGame(int gameId) {
+    return db.transaction(() async {
+      final participantIds = await (db.select(db.gameParticipants)
+            ..where((p) => p.gameId.equals(gameId)))
+          .map((p) => p.id)
+          .get();
+      for (final id in participantIds) {
+        await (db.delete(db.lifeEvents)
+              ..where((e) => e.gameParticipantId.equals(id)))
+            .go();
+      }
+      await (db.delete(db.gameParticipants)
+            ..where((p) => p.gameId.equals(gameId)))
+          .go();
+      await (db.delete(db.games)..where((g) => g.id.equals(gameId))).go();
+    });
   }
 
   /// Protokolliert eine Lebenspunkte-Änderung während einer Live-Partie

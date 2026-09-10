@@ -21,6 +21,15 @@ enum GameEntryMode { manual, live }
 /// werden immer direkt als [completed] angelegt.
 enum GameStatus { inProgress, completed }
 
+/// An welcher Tischseite ein Teilnehmer für die Live-Ansicht sitzt
+/// (siehe LiveGameScreen/_LifeGrid). Bestimmt Position UND Drehung
+/// seiner Lebenspunkte-Kachel, damit sie beim flachen Auflegen des
+/// Geräts auf den Tisch für jeden Teilnehmer an seinem Platz richtig
+/// herum lesbar ist - unabhängig von der spielrelevanten Zugreihenfolge
+/// (siehe GameParticipants.startPosition). Wird im Setup über einen
+/// Tisch-Diagramm-Wähler festgelegt (siehe GameSetupScreen).
+enum TableSide { top, bottom, left, right }
+
 class Games extends Table {
   IntColumn get id => integer().autoIncrement()();
   DateTimeColumn get playedAt => dateTime()();

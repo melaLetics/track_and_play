@@ -10,6 +10,7 @@ import '../../model/game_mode_labels.dart';
 import '../../model/game_participant_draft.dart';
 import '../../model/game_setup_validator.dart';
 import '../../model/live_participant.dart';
+import '../../model/table_side_labels.dart';
 import '../widgets/add_anonymous_participant_dialog.dart';
 import '../widgets/add_known_participant_dialog.dart';
 import '../widgets/select_deck_dialog.dart';
@@ -19,7 +20,11 @@ import 'live_game_screen.dart';
 /// optionale Gruppe und Teilnehmer (bekannt oder anonym, inkl.
 /// Startposition und - je nach Modus - Team) werden hier
 /// zusammengestellt, bevor entweder manuell gespeichert (inkl.
-/// Platzierung) oder eine Live-Erfassung gestartet wird.
+/// Platzierung) oder eine Live-Erfassung gestartet wird. Nur bei
+/// Live-Erfassung zusätzlich: Start-Lebenspunkte und ein visueller
+/// Sitzplatz-Wähler (_TableSeatPicker), der festlegt, an welcher
+/// Tischseite jeder Teilnehmer im Live-Grid erscheint (siehe
+/// LiveGameScreen).
 class GameSetupScreen extends ConsumerStatefulWidget {
   const GameSetupScreen({super.key});
 
@@ -74,7 +79,35 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     if (_mode == GameMode.twoHeadedGiant) {
       team = _participants.length.isEven ? 'A' : 'B';
     }
-    return draft.copyWith(startPosition: startPosition, team: team);
+    return draft.copyWith(
+      startPosition: startPosition,
+      team: team,
+      tableSide: _defaultTableSide(),
+    );
+  }
+
+  /// Ausgangsbelegung für neu hinzugefügte Teilnehmer im Sitzplatz-
+  /// Wähler (siehe _TableSeatPicker): gleicht oben/unten aus - exakt
+  /// dieselbe Verteilung, die das Live-Grid früher automatisch ohne
+  /// Wähler vorgenommen hat (erste Hälfte oben, Rest unten), nur
+  /// inkrementell statt in einem Rutsch berechnet, da Teilnehmer
+  /// einzeln hinzugefügt werden. Links/Rechts bleiben reine manuelle
+  /// Wahl über den Wähler - dafür gibt es keinen automatischen
+  /// Standardwert. Bei Gleichstand (auch ganz am Anfang) wird "unten"
+  /// bevorzugt.
+  TableSide _defaultTableSide() {
+    final topCount =
+        _participants.where((p) => p.tableSide == TableSide.top).length;
+    final bottomCount = _participants
+        .where((p) => (p.tableSide ?? TableSide.bottom) == TableSide.bottom)
+        .length;
+    return topCount < bottomCount ? TableSide.top : TableSide.bottom;
+  }
+
+  void _setTableSide(int index, TableSide side) {
+    setState(() {
+      _participants[index] = _participants[index].copyWith(tableSide: side);
+    });
   }
 
   Set<int> get _knownPlayerIds =>
@@ -257,6 +290,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
           startingLife: _startingLife,
           team: draftsWithLife[i].team,
           startPosition: draftsWithLife[i].startPosition,
+          tableSide: draftsWithLife[i].tableSide,
         ),
     ];
     if (mounted) {
@@ -449,6 +483,23 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                   icon: const Icon(Icons.add_circle_outline),
                 ),
               ],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Tisch-Anordnung',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Bestimmt Position und Drehung der Lebenspunkte-Kacheln in '
+              'der Live-Ansicht, wenn das Gerät flach auf dem Tisch liegt. '
+              'Auf einen Namen tippen, um die Seite zu ändern.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            _TableSeatPicker(
+              participants: _participants,
+              onChanged: _setTableSide,
             ),
           ],
           const SizedBox(height: 16),
@@ -698,6 +749,143 @@ class _ArchenemyWinnerSelector extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Visueller Sitzplatz-Wähler für die Live-Ansicht (Nutzerwunsch,
+/// angelehnt an einen Referenz-Screenshot mit Tisch-Diagramm): zeigt
+/// ein Tisch-Diagramm mit vier Zonen (oben/unten/links/rechts) - exakt
+/// dieselbe Anordnung, in der die Lebenspunkte-Kacheln später im
+/// Live-Grid erscheinen (siehe _LifeGrid in live_game_screen.dart) -
+/// und ordnet jeden Teilnehmer als Chip in seiner aktuell gewählten
+/// Zone ein. Tippen auf einen Chip öffnet ein Menü zum Umstellen der
+/// Seite. Bewusst kein Drag&Drop zwischen den Zonen: in dieser
+/// Cloud-Umgebung ohne echtes Flutter-Tooling (nur strukturelle
+/// Klammer-Prüfung, siehe ARCHITECTURE.md) lässt sich eine
+/// Drag-Geste nicht zuverlässig verifizieren - das Tippen+Menü liefert
+/// dieselbe Zuordnungsmöglichkeit, nur mit einer robusteren
+/// Interaktion. Teilnehmer ohne explizit gesetzte Seite gelten als
+/// "unten" (siehe GameParticipantDraft.tableSide/_defaultTableSide).
+class _TableSeatPicker extends StatelessWidget {
+  final List<GameParticipantDraft> participants;
+  final void Function(int index, TableSide side) onChanged;
+
+  const _TableSeatPicker({required this.participants, required this.onChanged});
+
+  List<int> _indexesFor(TableSide side) => [
+        for (var i = 0; i < participants.length; i++)
+          if ((participants[i].tableSide ?? TableSide.bottom) == side) i,
+      ];
+
+  Widget _zone(
+    BuildContext context,
+    String label,
+    List<int> indexes,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      constraints: const BoxConstraints(minHeight: 56),
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: indexes.isEmpty
+          ? Center(
+              child: Text(
+                label,
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11),
+              ),
+            )
+          : Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              alignment: WrapAlignment.center,
+              children: [for (final i in indexes) _seatChip(context, i)],
+            ),
+    );
+  }
+
+  Widget _seatChip(BuildContext context, int index) {
+    final draft = participants[index];
+    final current = draft.tableSide ?? TableSide.bottom;
+    return PopupMenuButton<TableSide>(
+      tooltip: 'Sitzplatz ändern',
+      onSelected: (side) => onChanged(index, side),
+      itemBuilder: (context) => [
+        for (final side in TableSide.values)
+          PopupMenuItem(
+            value: side,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  side == current ? Icons.check : null,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text(tableSideLabels[side] ?? side.name),
+              ],
+            ),
+          ),
+      ],
+      child: Chip(label: Text(draft.displayName)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        _zone(context, 'Oben', _indexesFor(TableSide.top)),
+        const SizedBox(height: 6),
+        // IntrinsicHeight ist hier zwingend nötig: Row +
+        // CrossAxisAlignment.stretch braucht eine BEGRENZTE Höhe zum
+        // Strecken, aber diese Row steht als normales (nicht in
+        // Expanded gepacktes) Column-Kind innerhalb der äußeren
+        // ListView des Setup-Screens - dort ist die Höhe unbegrenzt
+        // (Bugreport: "kann nicht so weit runterscrollen", weil genau
+        // das beim ersten Versuch ohne IntrinsicHeight zu einem
+        // Layout-Fehler führte und die ListView ab hier nicht mehr
+        // richtig gerendert/gescrollt werden konnte).
+        // IntrinsicHeight berechnet die tatsächlich benötigte Höhe
+        // der Zeile und gibt sie als feste Zwangsvorgabe an Row
+        // weiter, wodurch stretch wieder funktioniert.
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _zone(context, 'Links', _indexesFor(TableSide.left)),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                flex: 2,
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 56),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.table_bar_outlined,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _zone(context, 'Rechts', _indexesFor(TableSide.right)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        _zone(context, 'Unten', _indexesFor(TableSide.bottom)),
+      ],
     );
   }
 }

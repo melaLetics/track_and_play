@@ -243,6 +243,7 @@ class _PlayerDetailScreenState extends ConsumerState<PlayerDetailScreen> {
               return DeckStackCard(
                 name: deck.name,
                 subtitle: subtitleParts.join(' · '),
+                link: deck.deckLink,
                 colorIdentity: deck.colorIdentity,
                 archived: deck.archived,
                 trailing: IconButton(

@@ -418,6 +418,226 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
 
 ## Bekannte Fixes
 
+- **Fix: Sitzplatz-Wähler machte den Setup-Screen unscrollbar**
+  (Nutzer-Bugreport direkt nach der Einführung des Sitzplatz-Wählers
+  unten: "kann nicht so weit runter scrollen, um die Anordnung zu
+  bearbeiten"). Ursache: die mittlere Zeile des `_TableSeatPicker`
+  (Links-Zone/Tisch-Symbol/Rechts-Zone) nutzte
+  `Row(crossAxisAlignment: CrossAxisAlignment.stretch, ...)` als
+  direktes (nicht in `Expanded` gepacktes) Kind einer `Column`, die
+  wiederum in der ÄUSSEREN `ListView` des Setup-Screens steht - dort
+  ist die Höhe unbegrenzt. `CrossAxisAlignment.stretch` braucht aber
+  zwingend eine begrenzte Höhe, um seine Kinder darauf zu strecken;
+  bei unbegrenzter Höhe wirft Flutter einen Layout-Fehler, der das
+  Rendern/Scrollen der ListView ab dieser Stelle kaputt macht - exakt
+  das beobachtete Symptom. Fix: die Row in `IntrinsicHeight` gepackt
+  (berechnet die tatsächlich benötigte Höhe und gibt sie als feste
+  Vorgabe weiter, wodurch stretch wieder eine gültige Grundlage hat).
+  Zur Sicherheit den Rest des Projekts nach demselben Muster
+  durchsucht: die einzige weitere neue `CrossAxisAlignment.stretch`-
+  Stelle dieser Änderung (die mittlere Zeile im Live-Grid,
+  `_LifeGrid` in live_game_screen.dart) ist NICHT betroffen, da sie
+  dort in `Expanded` innerhalb der (nicht scrollenden) `Scaffold.body`
+  steht und damit von vornherein eine begrenzte Höhe bekommt. Weitere,
+  bereits vor dieser Session bestehende `CrossAxisAlignment.stretch`-
+  Stellen (deck_stack_card.dart, home_screen.dart, setup_wizard.dart)
+  wurden nur überflogen, nicht angefasst - außerhalb des gemeldeten
+  Bugs und ohne Hinweis auf ein tatsächliches Problem dort.
+
+- **Visueller Sitzplatz-Wähler für die Tisch-Anordnung im Live-Grid**
+  (Nutzerwunsch: im Setup-Referenz-Screenshot der ursprünglichen
+  Live-Screen-Anfrage war eine Auswahl der Tischanordnung zu sehen -
+  bisher hatte das Live-Grid nur eine automatische, nicht editierbare
+  Oben/Unten-Aufteilung). Vorab per AskUserQuestion geklärt: einfache
+  Oben/Unten-Zuordnung je Teilnehmer vs. voller visueller
+  Sitzplatz-Wähler mit allen vier Tischseiten und freier Kachel-
+  Drehung - Nutzer hat sich für Letzteres entschieden.
+  **Datenmodell**: neues Enum `TableSide { top, bottom, left, right }`
+  (games_table.dart) sowie neue nullable Spalte
+  `GameParticipants.tableSide` (`textEnum<TableSide>().nullable()()`).
+  Schema-Änderung wie immer in dieser Umgebung: vor dem nächsten Build
+  einmalig `dart run build_runner build --delete-conflicting-outputs`
+  ausführen (aus dieser Cloud-Umgebung heraus nicht möglich) UND wie in
+  "Bekannte Einschränkung: keine Datenbank-Migration" beschrieben
+  einmalig die App-Daten/Cache auf dem Testgerät löschen.
+  `GameParticipantDraft`/`LiveParticipant` bekommen je ein `tableSide`-
+  Feld; `GamesRepository._insertParticipant`/`loadLiveParticipants`
+  schreiben/lesen es mit.
+  **Setup (`GameSetupScreen`)**: neue Sektion "Tisch-Anordnung" (nur im
+  Live-Erfassungs-Modus, unterhalb "Start-Lebenspunkte") mit dem neuen
+  `_TableSeatPicker`-Widget - zeigt ein Tisch-Diagramm mit vier Zonen
+  (Oben/Links+Rechts als mittlere Zeile/Unten), in denen jeder
+  Teilnehmer als Chip an seiner aktuellen Seite erscheint. Tippen auf
+  einen Chip öffnet ein Menü zum Umstellen der Seite - BEWUSST kein
+  Drag&Drop zwischen den Zonen (in dieser Umgebung ohne echtes
+  Flutter-Tooling nicht zuverlässig verifizierbar); liefert dieselbe
+  Zuordnungsmöglichkeit über eine robustere Interaktion, weicht damit
+  etwas vom Referenz-Screenshot ab (bitte gegenprüfen, ob das so
+  gewünscht ist). Neue Teilnehmer bekommen automatisch einen
+  ausgeglichenen Oben/Unten-Standardwert (`_defaultTableSide` in
+  `GameSetupScreen`) - reproduziert inkrementell exakt dieselbe
+  Verteilung, die das Live-Grid vorher automatisch (ohne Wähler)
+  vorgenommen hat, damit der Screen ohne jede manuelle Interaktion mit
+  dem Wähler weiterhin wie bisher funktioniert. Links/Rechts sind rein
+  manuelle Wahl ohne automatischen Standardwert.
+  **Live-Grid (`_LifeGrid`/`_LifeTile` in `live_game_screen.dart`)**:
+  komplett auf die vier Tischseiten umgebaut statt der bisherigen
+  festen Oben/Unten-Aufteilung. Teilnehmer werden nach `tableSide`
+  gruppiert; Oben/Unten erscheinen als volle Zeilen, Links/Rechts als
+  Spalten in einer mittleren Zeile dazwischen - Zonen ohne Teilnehmer
+  werden komplett weggelassen, so dass eine reine Oben/Unten-Belegung
+  (der Standardfall) optisch exakt wie das bisherige Zwei-Reihen-Layout
+  aussieht. Drehung je Seite (weiterhin `RotatedBox`, kein
+  `Transform.rotate` - vertauscht bei 90°/270° korrekt Breite/Höhe):
+  oben = 180°, unten = 0° (unverändert), links = 270°
+  (Textoberkante zeigt zum Spieler nach links), rechts = 90°
+  (Textoberkante zeigt nach rechts) - Standard-Konvention aus
+  vergleichbaren Lebenspunkte-Zähler-Apps mit Spielern an allen vier
+  Tischseiten. `_LifeTile.rotated` (bool) wurde durch `quarterTurns`
+  (int, 0/1/2/3) ersetzt. Bei genau einem Teilnehmer (Solo-Tracking)
+  entfällt weiterhin jede Aufteilung/Drehung, unabhängig von der
+  gewählten Tischseite.
+  **Altbestand**: bereits laufende, VOR dieser Änderung gestartete
+  Live-Partien haben für alle Teilnehmer `tableSide == null` - wird wie
+  "unten" behandelt, landet beim Fortsetzen also in einer einzelnen
+  unrotierten Zeile statt der früheren automatischen Aufteilung.
+  Unkritisch, da wegen der Schema-Änderung ohnehin einmalig die
+  App-Daten gelöscht werden müssen (s. o.), es also keine "alten"
+  laufenden Partien mehr geben wird, die fortgesetzt werden könnten.
+  **Bewusst NICHT umgesetzt/außerhalb des Scopes**: `tableSide` fließt
+  NICHT in Export/Import (`export_bundle.dart`/`import_service.dart`)
+  ein, anders als `startPosition`/`team` - es ist eine rein
+  bildschirmbezogene Live-Einstellung ohne Aussagewert für die
+  Partien-Historie, ein Re-Import würde ohnehin wieder einen neuen
+  Sitzplatz-Wähler-Durchlauf erfordern (die importierte Partie ist ja
+  bereits abgeschlossen, nicht live).
+
+- **Live-Tracking-Screen erzwingt Querformat** (Nutzerwunsch, direkte
+  Folge des "auf den Tisch gelegt"-Redesigns weiter unten - das
+  rotierte Lebenspunkte-Raster ist nur im Querformat sinnvoll
+  nutzbar). `LiveGameScreen` setzt in `initState()` per
+  `SystemChrome.setPreferredOrientations` ausschließlich
+  `DeviceOrientation.landscapeLeft`/`landscapeRight`, unabhängig von
+  der Geräte-Rotationssperre. In `dispose()` wird die Einschränkung
+  wieder auf alle vier Ausrichtungen zurückgesetzt (Hoch- UND
+  Querformat), damit der Rest der App - die bisher nirgends eine
+  Orientierung erzwingt - danach wieder normal (inkl. Hochformat)
+  nutzbar ist. Betrifft sowohl den erstmaligen Start als auch das
+  Fortsetzen einer Partie, da beide Wege über denselben Screen
+  laufen.
+
+- **Laufende Partie fortsetzen oder abbrechen** (Nutzer-Bugreport: nach
+  Verlassen des Live-Tracking-Screens - z. B. per Zurück-Taste - blieb
+  die Partie in der Partien-Übersicht/Detailansicht mit Status
+  `GameStatus.inProgress` sichtbar, aber es gab keine Möglichkeit,
+  sie fortzusetzen oder zu verwerfen; sie blieb als "Datenleiche"
+  liegen).
+  `GamesRepository` um zwei Methoden erweitert:
+  `loadLiveParticipants(gameId)` rekonstruiert die
+  `LiveParticipant`-Liste einer laufenden Partie aus der DB (Join
+  `GameParticipants` mit `Players`, sortiert nach `startPosition`,
+  je Teilnehmer wird der zuletzt protokollierte `LifeEvents`-Eintrag
+  geladen, um den aktuellen Lebenspunktestand wiederherzustellen -
+  dieselbe Konstruktion wie beim ursprünglichen Start einer Partie).
+  `cancelLiveGame(gameId)` löscht eine Partie vollständig und
+  unwiderruflich in einer Transaktion, in der wegen fehlender
+  Cascading-Deletes in den Drift-Tabellen nötigen Reihenfolge:
+  zuerst `LifeEvents` je Teilnehmer, dann `GameParticipants`,
+  zuletzt die `Games`-Zeile selbst.
+  `LiveGameScreen` bekommt einen neuen optionalen Konstruktor-Parameter
+  `firstBloodParticipantId`, damit beim Fortsetzen einer Partie eine
+  bereits gesetzte "Erste Blutung"-Markierung erhalten bleibt statt
+  verloren zu gehen.
+  `GameDetailScreen`: der bisherige rein informative Hinweistext bei
+  `status == GameStatus.inProgress` ("Diese Partie läuft noch") wird
+  jetzt um eine Button-Zeile ergänzt: "Fortsetzen" (`FilledButton`,
+  navigiert per `MaterialPageRoute` zu `LiveGameScreen`, mit
+  `startedAt: game.startedAt ?? game.createdAt` als Fallback, falls
+  `startedAt` aus alten/fehlerhaften Datenständen `null` sein sollte)
+  und "Abbrechen" (`OutlinedButton`, fehlerfarben) - Letzteres öffnet
+  vor dem eigentlichen Löschen einen Bestätigungsdialog (`AlertDialog`
+  mit deutlichem Warntext zur Unwiderruflichkeit; Dismiss-Button
+  bewusst "Zurück" statt "Abbrechen" genannt, um eine Wort-Kollision
+  mit dem destruktiven Bestätigen-Button zu vermeiden, der seinerseits
+  eindeutig "Partie abbrechen" heißt statt nur "Löschen"/"OK"). Nach
+  erfolgreichem Abbrechen wird der Detail-Screen automatisch
+  geschlossen (`Navigator.pop`), da die Partie nicht mehr existiert.
+
+- **Live-Partie: Lebenspunkte-Grid im "auf den Tisch gelegt"-Look**
+  (Nutzerwunsch, angelehnt an zwei Screenshots einer Referenz-App -
+  ein Setup-Screen und ein Live-Tracking-Screen mit rotiertem
+  4-Spieler-Raster). Vorab per AskUserQuestion zwei Umfangsfragen
+  geklärt: (1) die vier Schnellzugriffs-Icons der Referenz je Ecke
+  (SCHADEN/STEUER/MANA/SPIELMARKEN) werden NICHT übernommen - dafür
+  gibt es in dieser App keine Datengrundlage (kein Schadens-Log,
+  keine Kommandeur-Schaden-Matrix, kein Mana-Pool, keine Marken-
+  Zähler) und das wären jeweils eigene, große Features; können bei
+  Bedarf später einzeln beauftragt werden. (2) das Rotations-Prinzip
+  (obere Spieler-Kacheln um 180° gedreht) wurde auf ALLE
+  unterstützten Spielerzahlen (1-6) verallgemeinert statt nur für
+  exakt 4 Spieler wie im Screenshot.
+  Nur der SETUP-Screen (`GameSetupScreen`) blieb unverändert - er
+  dient in dieser App (anders als in der minimalistischen
+  Referenz-App) der Zuordnung konkreter Spieler/Decks/Commander für
+  die spätere Statistik, das erste Referenz-Bild diente nur als
+  Kontext für den Screen-Übergang, nicht als 1:1-Vorlage.
+  `LiveGameScreen` neu strukturiert: `AppBar` bleibt (Modus-Titel),
+  `body` ist jetzt vollflächig `_LifeGrid` (kein Padding, keine
+  Scroll-Liste mehr) statt der bisherigen `ListView` aus Cards; die
+  bisherige `FloatingActionButton` ("Partie beenden", inkl. ihres
+  `heroTag: 'live_game_fab'` aus dem Hero-Bugfix weiter oben) ist
+  jetzt eine `bottomNavigationBar`-Leiste mit Timer links und
+  "Partie beenden"-Button rechts - vermeidet, dass eine
+  schwebende FAB die Tipp-Flächen der unteren Spieler-Kacheln
+  verdeckt (und macht den Hero-Tag hier gegenstandslos, da keine
+  FAB mehr existiert).
+  Neue Widgets: `_LifeGrid` (verteilt Teilnehmer auf obere/untere
+  Reihe - bei EINEM Teilnehmer entfällt die Aufteilung/Drehung
+  komplett, bei ungerader Anzahl bekommt die UNTERE Reihe den
+  zusätzlichen Platz) und `_LifeTile` (eine Kachel: Name + "Erste
+  Blutung"-Marker oben, darunter Tipp-Fläche "+", große
+  Lebenspunkte-Zahl, Tipp-Fläche "-" - exakt die vom Nutzer
+  vorgegebene Reihenfolge. Einfaches Antippen ändert die
+  Lebenspunkte um 1, langes Drücken um 5 (übernimmt die bisherige
+  -5/-1/+1/+5-Schnellwahl, jetzt platzsparender per Long-Press statt
+  vier eigener Buttons - Abweichung von den Screenshots, aber ohne
+  Funktionsverlust; bitte gegenprüfen, ob das so gewünscht ist).
+  Drehung per `RotatedBox(quarterTurns: 2)` statt `Transform.rotate`
+  (vertauscht bei 180° nicht Breite/Höhe, Layout bleibt simpel).
+  Bewusst OHNE Hintergrundbild und mit ruhigen, dem App-Theme
+  entnommenen Flächenfarben (`colorScheme.surfaceContainer`/
+  `outlineVariant`/`primary` gedämpft) statt der bunten
+  Kartenbilder aus der Referenz-App (explizite Nutzervorgabe). Die
+  "Erste Blutung"-Markierung (bisher als `Chip` neben dem Namen)
+  ist jetzt ein kleines Blutstropfen-Icon vor dem Namen in der
+  Kachel, aus Platzgründen kompakter.
+
+- **Deck-Link in der Deck-Übersicht anzeigen + öffnen**
+  (Nutzerwunsch: dritte, optionale Zeile in der Deck-Kachel, wenn
+  ein Link hinterlegt ist - und der Link soll tatsächlich
+  funktionieren). `Decks.deckLink` konnte bisher nur über
+  `DeckFormDialog` gesetzt/bearbeitet werden, wurde aber nirgends
+  angezeigt. `DeckStackCard` (siehe vorheriger Eintrag zum
+  Stapel-Look) bekommt ein neues optionales `link`-Feld: ist es
+  gesetzt, erscheint unter Titel/Untertitel eine dritte Zeile mit
+  Link-Icon + Linktext (unterstrichen, Primärfarbe), mit eigenem
+  Tap-Bereich (`InkWell`) unabhängig vom card-weiten `onTap`
+  (öffnet weiterhin den Bearbeiten-Dialog) - funktioniert wie das
+  bereits vorhandene Trailing-Icon (QR-Teilen-Button) innerhalb
+  derselben Karte. `PlayerDetailScreen` übergibt jetzt
+  `link: deck.deckLink`.
+  Öffnen via `url_launcher` (`^6.1.8`, war in pubspec.yaml bereits
+  als Dependency vorbereitet, aber bisher ungenutzt) -
+  `LaunchMode.externalApplication`. Nutzer geben Links oft ohne
+  Schema ein (z. B. "moxfield.com/decks/..."); fehlt ein Schema,
+  wird automatisch "https://" ergänzt, bevor geparst/geöffnet
+  wird. Bei ungültigem Link bzw. wenn `launchUrl` fehlschlägt
+  (`false` zurückgibt), zeigt ein SnackBar einen Hinweis statt
+  einfach nichts zu tun. `ScaffoldMessenger` wird bewusst VOR dem
+  `await launchUrl(...)` geholt, nicht danach per `context` erneut
+  (kein möglicherweise nicht mehr gemountetes `BuildContext` nach
+  der asynchronen Lücke).
+
 - **Bugfix: eigene Decks beim Import fälschlich blockiert, wenn
   der eigene Name als Duplikat erkannt wird** (Nutzer-Bugreport:
   "wenn mein eigener Name als 'vermutlich bereits vorhanden'

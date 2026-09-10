@@ -7,10 +7,15 @@ import '../../../export/view/widgets/qr_share_dialog.dart';
 import '../../../groups/controller/provider/groups_repository_provider.dart';
 import '../../controller/provider/games_repository_provider.dart';
 import '../../model/game_mode_labels.dart';
+import 'live_game_screen.dart';
 
 /// Detailansicht einer einzelnen Partie: Modus, Datum, Gruppe (falls
 /// vorhanden), Dauer (bei Live-Partien), Teilnehmer mit Sieger- und
-/// First-Blood-Markierung.
+/// First-Blood-Markierung. Bei einer noch LAUFENDEN Partie (status ==
+/// inProgress, z. B. nachdem der Live-Screen per Zurück-Taste
+/// verlassen wurde, siehe ARCHITECTURE.md) zusätzlich zwei Aktionen
+/// zum Fortsetzen oder vollständigen Verwerfen (Nutzer-Bugreport: bis
+/// hierhin gab es dafür keine Möglichkeit).
 class GameDetailScreen extends ConsumerWidget {
   final int gameId;
 
@@ -72,7 +77,7 @@ class GameDetailScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               if (game.groupId != null) _GroupLine(groupId: game.groupId!),
-              if (game.status == GameStatus.inProgress)
+              if (game.status == GameStatus.inProgress) ...[
                 const Padding(
                   padding: EdgeInsets.only(top: 8),
                   child: Text(
@@ -80,6 +85,38 @@ class GameDetailScreen extends ConsumerWidget {
                     style: TextStyle(fontStyle: FontStyle.italic),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () =>
+                              _resumeLiveGame(context, ref, game),
+                          icon: const Icon(Icons.play_arrow),
+                          label: const Text('Fortsetzen'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              _cancelLiveGame(context, ref, game),
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Abbrechen'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor:
+                                Theme.of(context).colorScheme.error,
+                            side: BorderSide(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               if (game.durationSeconds != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -170,6 +207,69 @@ class GameDetailScreen extends ConsumerWidget {
     final hours = totalSeconds ~/ 3600;
     final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
     return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds min';
+  }
+
+  /// Setzt eine laufende (noch nicht abgeschlossene) Partie im Live-Screen
+  /// fort. Lädt dazu die aktuellen Teilnehmer inkl. ihres zuletzt
+  /// protokollierten Lebenspunktestands aus der DB und übergibt sie an
+  /// [LiveGameScreen], anstatt eine neue Partie zu starten.
+  Future<void> _resumeLiveGame(
+    BuildContext context,
+    WidgetRef ref,
+    Game game,
+  ) async {
+    final repo = ref.read(gamesRepositoryProvider);
+    final participants = await repo.loadLiveParticipants(game.id);
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LiveGameScreen(
+          gameId: game.id,
+          mode: game.mode,
+          startedAt: game.startedAt ?? game.createdAt,
+          participants: participants,
+          firstBloodParticipantId: game.firstBloodParticipantId,
+        ),
+      ),
+    );
+  }
+
+  /// Bricht eine laufende Partie nach Rückfrage vollständig ab: löscht die
+  /// Partie inkl. aller Teilnehmer und protokollierten Lebenspunkte-
+  /// Änderungen unwiderruflich aus der DB.
+  Future<void> _cancelLiveGame(
+    BuildContext context,
+    WidgetRef ref,
+    Game game,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Partie abbrechen?'),
+        content: const Text(
+          'Die Partie und alle bisher erfassten Lebenspunkte-Änderungen '
+          'werden unwiderruflich gelöscht. Das lässt sich nicht rückgängig '
+          'machen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Zurück'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Partie abbrechen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final repo = ref.read(gamesRepositoryProvider);
+    await repo.cancelLiveGame(game.id);
+    if (context.mounted) Navigator.of(context).pop();
   }
 }
 

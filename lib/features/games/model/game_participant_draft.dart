@@ -1,3 +1,5 @@
+import '../../../database/app_database.dart';
+
 /// Ein Teilnehmer-Entwurf während der Partien-Erfassung (manuell oder
 /// live), bevor er als GameParticipants-Zeile gespeichert wird.
 ///
@@ -43,6 +45,13 @@ class GameParticipantDraft {
   /// Live-Erfassung erst beim Beenden der Partie.
   final int? placement;
 
+  /// Sitzplatz am Tisch für die Live-Ansicht (siehe TableSide) - nur
+  /// bei Live-Erfassung relevant, wird im Setup über den
+  /// Tisch-Diagramm-Wähler festgelegt (Standardwert: automatisch
+  /// zwischen oben/unten ausgeglichen, siehe
+  /// GameSetupScreen._defaultTableSide).
+  final TableSide? tableSide;
+
   const GameParticipantDraft({
     this.playerId,
     this.playerName,
@@ -56,6 +65,7 @@ class GameParticipantDraft {
     this.team,
     this.startPosition,
     this.placement,
+    this.tableSide,
   });
 
   bool get isAnonymous => playerId == null;
@@ -78,6 +88,7 @@ class GameParticipantDraft {
     String? team,
     int? startPosition,
     int? placement,
+    TableSide? tableSide,
   }) {
     return GameParticipantDraft(
       playerId: playerId,
@@ -92,6 +103,7 @@ class GameParticipantDraft {
       team: team ?? this.team,
       startPosition: startPosition ?? this.startPosition,
       placement: placement ?? this.placement,
+      tableSide: tableSide ?? this.tableSide,
     );
   }
 
@@ -122,6 +134,7 @@ class GameParticipantDraft {
       team: team,
       startPosition: startPosition,
       placement: placement,
+      tableSide: tableSide,
     );
   }
 }

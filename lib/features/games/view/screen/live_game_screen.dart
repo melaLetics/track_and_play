@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../database/app_database.dart';
@@ -13,12 +14,22 @@ import '../../model/live_participant.dart';
 /// Live-Erfassung einer laufenden Partie: Lebenspunktezähler pro
 /// Teilnehmer, Laufzeit-Timer und automatische "First Blood"-Markierung
 /// (siehe GamesRepository.recordLifeChange). Eine Live-Partie ist nicht
-/// pausierbar - sie läuft bis "Partie beenden" gedrückt wird.
+/// pausierbar - sie läuft bis "Partie beenden" gedrückt wird. Erzwingt
+/// während der gesamten Anzeigedauer Querformat (siehe initState/dispose
+/// - Nutzerwunsch, passend zum "auf den Tisch gelegt"-Look).
 class LiveGameScreen extends ConsumerStatefulWidget {
   final int gameId;
   final GameMode mode;
   final DateTime startedAt;
   final List<LiveParticipant> participants;
+
+  /// Nur beim FORTSETZEN einer bereits laufenden Partie gesetzt (siehe
+  /// GameDetailScreen - "Partie fortsetzen"/GamesRepository.
+  /// loadLiveParticipants): übernimmt die schon vor dem Verlassen des
+  /// Screens gesetzte "Erste Blutung"-Markierung, damit sie nach dem
+  /// Fortsetzen nicht verloren geht bzw. fälschlich neu vergeben wird.
+  /// Bleibt beim erstmaligen Start einer Partie null.
+  final int? firstBloodParticipantId;
 
   const LiveGameScreen({
     super.key,
@@ -26,6 +37,7 @@ class LiveGameScreen extends ConsumerStatefulWidget {
     required this.mode,
     required this.startedAt,
     required this.participants,
+    this.firstBloodParticipantId,
   });
 
   @override
@@ -53,14 +65,29 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
     _currentLife = {
       for (final p in widget.participants) p.gameParticipantId: p.startingLife,
     };
+    _firstBloodParticipantId = widget.firstBloodParticipantId;
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
+    // Live-Tracking wird "auf den Tisch gelegt" bedient (siehe
+    // ARCHITECTURE.md) - dafür ist ausschließlich Querformat sinnvoll,
+    // unabhängig von der Geräte-Rotationssperre. Wird beim Verlassen des
+    // Screens in dispose() wieder aufgehoben.
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     super.dispose();
   }
 
@@ -149,95 +176,262 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(gameModeLabels[widget.mode] ?? widget.mode.name),
       ),
-      body: Column(
+      body: SafeArea(
+        child: _LifeGrid(
+          participants: widget.participants,
+          life: _currentLife,
+          firstBloodParticipantId: _firstBloodParticipantId,
+          onDelta: _applyDelta,
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            border: Border(top: BorderSide(color: scheme.outlineVariant)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.timer_outlined,
+                size: 18,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Text(_elapsedLabel, style: Theme.of(context).textTheme.bodyMedium),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: _finishing ? null : _finishGame,
+                icon: const Icon(Icons.flag),
+                label: const Text('Partie beenden'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Lebenspunkte-Grid im "auf den Tisch gelegt"-Look (Nutzerwunsch,
+/// angelehnt an eine Referenz-App mit Tisch-Layout): jeder Teilnehmer
+/// bekommt im Setup (siehe GameSetupScreen._TableSeatPicker) eine
+/// Tischseite (TableSide: oben/unten/links/rechts) zugewiesen, die hier
+/// sowohl die POSITION (welche Zone des Grids) als auch die DREHUNG
+/// seiner Kachel bestimmt - damit jeder Teilnehmer sein eigenes Feld
+/// unabhängig davon lesen kann, wo das Telefon flach auf dem Tisch
+/// liegt. Drehung je Seite (siehe _tile/_LifeTile): oben = 180°, unten
+/// = 0°, links = 270° (damit die Textoberkante nach links zum Spieler
+/// zeigt), rechts = 90° (Textoberkante nach rechts). Layout: oben/unten
+/// als volle Zeilen, links/rechts als Spalten in einer mittleren Zeile
+/// dazwischen - Zonen ohne Teilnehmer werden komplett weggelassen, so
+/// dass eine reine Oben/Unten-Belegung (der Standardfall, siehe
+/// GameSetupScreen._defaultTableSide) exakt wie das ursprüngliche
+/// Zwei-Reihen-Layout aussieht. Bei EINEM Teilnehmer (Solo-Tracking)
+/// entfällt jede Aufteilung/Drehung, unabhängig von der gewählten
+/// Tischseite. Alte, vor Einführung des Sitzplatz-Wählers gestartete
+/// Live-Partien haben für alle Teilnehmer TableSide == null - das wird
+/// wie "unten" behandelt (siehe LiveParticipant-Doc), landet also in
+/// einer einzelnen unrotierten Zeile statt der früheren automatischen
+/// Aufteilung; unkritisch, da laut ARCHITECTURE.md nach jeder
+/// Schema-Änderung ohnehin die App-Daten einmalig gelöscht werden
+/// müssen. Bewusst OHNE Hintergrundbild und mit ruhigen, dem
+/// App-Theme entnommenen Flächenfarben (Nutzervorgabe) - anders als
+/// die Referenz-App, die je Spieler ein eigenes Hintergrundbild zeigt.
+/// Die vier Schnellzugriffs-Ecken der Referenz (Schaden/Steuer/Mana/
+/// Spielmarken) sind bewusst NICHT übernommen - dafür gibt es in
+/// dieser App noch keine Datengrundlage (kein Schadens-Log, keine
+/// Kommandeur-Schaden-Matrix, kein Mana-Pool, keine Marken-Zähler);
+/// mit dem Nutzer abgestimmt, können bei Bedarf später einzeln
+/// nachgezogen werden.
+class _LifeGrid extends StatelessWidget {
+  final List<LiveParticipant> participants;
+  final Map<int, int> life;
+  final int? firstBloodParticipantId;
+  final void Function(LiveParticipant participant, int delta) onDelta;
+
+  const _LifeGrid({
+    required this.participants,
+    required this.life,
+    required this.firstBloodParticipantId,
+    required this.onDelta,
+  });
+
+  TableSide _sideOf(LiveParticipant p) => p.tableSide ?? TableSide.bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    if (participants.length <= 1) {
+      return Row(
+        children: [
+          for (final p in participants) Expanded(child: _tile(p, quarterTurns: 0)),
+        ],
+      );
+    }
+    final top = [
+      for (final p in participants) if (_sideOf(p) == TableSide.top) p,
+    ];
+    final bottom = [
+      for (final p in participants) if (_sideOf(p) == TableSide.bottom) p,
+    ];
+    final left = [
+      for (final p in participants) if (_sideOf(p) == TableSide.left) p,
+    ];
+    final right = [
+      for (final p in participants) if (_sideOf(p) == TableSide.right) p,
+    ];
+
+    final hasMiddleRow = left.isNotEmpty || right.isNotEmpty;
+
+    return Column(
+      children: [
+        if (top.isNotEmpty) Expanded(child: _row(top, quarterTurns: 2)),
+        if (hasMiddleRow)
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (left.isNotEmpty)
+                  Expanded(child: _column(left, quarterTurns: 3)),
+                if (right.isNotEmpty)
+                  Expanded(child: _column(right, quarterTurns: 1)),
+              ],
+            ),
+          ),
+        if (bottom.isNotEmpty) Expanded(child: _row(bottom, quarterTurns: 0)),
+      ],
+    );
+  }
+
+  Widget _row(List<LiveParticipant> row, {required int quarterTurns}) {
+    return Row(
+      children: [
+        for (final p in row) Expanded(child: _tile(p, quarterTurns: quarterTurns)),
+      ],
+    );
+  }
+
+  Widget _column(List<LiveParticipant> col, {required int quarterTurns}) {
+    return Column(
+      children: [
+        for (final p in col) Expanded(child: _tile(p, quarterTurns: quarterTurns)),
+      ],
+    );
+  }
+
+  Widget _tile(LiveParticipant p, {required int quarterTurns}) {
+    return _LifeTile(
+      participant: p,
+      life: life[p.gameParticipantId] ?? 0,
+      quarterTurns: quarterTurns,
+      isFirstBlood: firstBloodParticipantId == p.gameParticipantId,
+      onDelta: (delta) => onDelta(p, delta),
+    );
+  }
+}
+
+/// Eine einzelne Spieler-Kachel im Lebenspunkte-Grid (siehe
+/// [_LifeGrid]): von oben nach unten Name (+ "Erste Blutung"-Marker),
+/// Tipp-Fläche "+" (Lebenspunkte erhöhen), große Lebenspunkte-Zahl,
+/// Tipp-Fläche "-" (Lebenspunkte senken) - genau die vom Nutzer
+/// gewünschte Anordnung ("oberhalb ein Plus, unterhalb ein Minus").
+/// Einfaches Antippen ändert die Lebenspunkte um 1, langes Drücken um
+/// 5 (übernimmt die bisherigen -5/-1/+1/+5-Schnellwahl-Buttons, nur
+/// platzsparender - passt so in die kompakte Tisch-Kachel). [quarterTurns]
+/// dreht die GESAMTE Kachel um die angegebene Zahl von 90°-Schritten
+/// (RotatedBox statt Transform.rotate - vertauscht bei 90°/270° korrekt
+/// Breite/Höhe, das Layout darunter bleibt unverändert simpel), damit
+/// ein Teilnehmer an einer beliebigen Tischseite (siehe TableSide/
+/// _LifeGrid) sein Feld richtig herum liest: 0 = unten (unrotiert),
+/// 2 = oben (180°), 3 = links (270°, Textoberkante zeigt nach links),
+/// 1 = rechts (90°, Textoberkante zeigt nach rechts).
+class _LifeTile extends StatelessWidget {
+  final LiveParticipant participant;
+  final int life;
+  final int quarterTurns;
+  final bool isFirstBlood;
+  final ValueChanged<int> onDelta;
+
+  const _LifeTile({
+    required this.participant,
+    required this.life,
+    required this.quarterTurns,
+    required this.isFirstBlood,
+    required this.onDelta,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final accentColor = scheme.primary.withValues(alpha: .8);
+    final content = DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainer,
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.timer_outlined),
-                const SizedBox(width: 8),
-                Text(
-                  _elapsedLabel,
-                  style: Theme.of(context).textTheme.headlineSmall,
+                if (isFirstBlood) ...[
+                  Icon(Icons.bloodtype, size: 14, color: scheme.error),
+                  const SizedBox(width: 4),
+                ],
+                Flexible(
+                  child: Text(
+                    participant.displayName,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                for (final p in widget.participants)
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  p.displayName,
-                                  style: Theme.of(context).textTheme.titleMedium,
-                                ),
-                              ),
-                              if (_firstBloodParticipantId ==
-                                  p.gameParticipantId)
-                                const Chip(
-                                  avatar: Icon(Icons.bloodtype, size: 18),
-                                  label: Text('First Blood'),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              IconButton(
-                                onPressed: () => _applyDelta(p, -5),
-                                icon: const Icon(Icons.remove_circle),
-                              ),
-                              IconButton(
-                                onPressed: () => _applyDelta(p, -1),
-                                icon: const Icon(Icons.remove),
-                              ),
-                              Text(
-                                '${_currentLife[p.gameParticipantId]}',
-                                style: Theme.of(context).textTheme.headlineMedium,
-                              ),
-                              IconButton(
-                                onPressed: () => _applyDelta(p, 1),
-                                icon: const Icon(Icons.add),
-                              ),
-                              IconButton(
-                                onPressed: () => _applyDelta(p, 5),
-                                icon: const Icon(Icons.add_circle),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 96),
-              ],
+            child: InkWell(
+              onTap: () => onDelta(1),
+              onLongPress: () => onDelta(5),
+              child: Center(
+                child: Icon(Icons.add, size: 26, color: accentColor),
+              ),
+            ),
+          ),
+          Text(
+            '$life',
+            style: theme.textTheme.displayMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: life <= 0 ? scheme.error : scheme.onSurface,
+            ),
+          ),
+          Expanded(
+            child: InkWell(
+              onTap: () => onDelta(-1),
+              onLongPress: () => onDelta(-5),
+              child: Center(
+                child: Icon(Icons.remove, size: 26, color: accentColor),
+              ),
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'live_game_fab',
-        onPressed: _finishing ? null : _finishGame,
-        icon: const Icon(Icons.flag),
-        label: const Text('Partie beenden'),
-      ),
     );
+    return quarterTurns == 0
+        ? content
+        : RotatedBox(quarterTurns: quarterTurns, child: content);
   }
 }
 
