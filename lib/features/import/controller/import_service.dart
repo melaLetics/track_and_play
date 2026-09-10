@@ -38,7 +38,11 @@ typedef _ResolvedParticipant = ({
 /// kann trotzdem manuell zustimmen. Partien werden NIE automatisch
 /// abgeglichen (ohne geräteübergreifende IDs zu fehleranfällig),
 /// sondern immer einzeln mit Datum/Modus/Teilnehmern zur Auswahl
-/// angezeigt, standardmäßig aber alle vorausgewählt.
+/// angezeigt, standardmäßig aber alle vorausgewählt - ABER (mit dem
+/// Nutzer abgestimmte Ergänzung) nur, wenn der eigene Self-Player
+/// tatsächlich teilgenommen hat (siehe [selfPlayerName] in
+/// [buildPreview]); Partien ohne eigene Teilnahme erscheinen gar
+/// nicht erst in der Vorschau.
 class ImportService {
   final AppDatabase db;
 
@@ -61,7 +65,27 @@ class ImportService {
     return ExportBundle.fromJson(decoded);
   }
 
-  Future<ImportPreview> buildPreview(ExportBundle bundle) async {
+  /// [selfPlayerName] (Name des lokalen Self-Players, siehe
+  /// AppSettings.selfPlayerId/selfPlayerProvider) filtert sowohl
+  /// [bundle].groups als auch [bundle].games (Namens-Abgleich wie beim
+  /// übrigen Import, case-insensitive):
+  /// - Gruppen: nur Gruppen, in denen dieser Name als Mitglied
+  ///   vorkommt, werden importiert - Gruppen ohne eigene Mitgliedschaft
+  ///   sind für den personenbezogenen Tracker irrelevant (mit dem
+  ///   Nutzer abgestimmte Vorgabe).
+  /// - Partien: nur Partien, an denen dieser Name tatsächlich als
+  ///   Teilnehmer beteiligt war, werden importiert (dieselbe Vorgabe).
+  ///
+  /// Beide Kategorien werden bei Nichterfüllung komplett aus der
+  /// Vorschau gefiltert (kein [ImportPreviewEntry], nicht wählbar,
+  /// nicht importierbar) statt nur standardmäßig abgewählt zu sein.
+  /// Wird kein Name übergeben (z. B. Self-Player noch nicht geladen),
+  /// entfallen beide Filter komplett statt versehentlich alles
+  /// auszublenden.
+  Future<ImportPreview> buildPreview(
+    ExportBundle bundle, {
+    String? selfPlayerName,
+  }) async {
     final existingPlayers = await db.select(db.players).get();
     final existingPlayerNames = <String>{
       for (final p in existingPlayers) p.name.toLowerCase(),
@@ -108,10 +132,22 @@ class ImportService {
       if (!duplicate) selectedDecks.add(i);
     }
 
+    final selfNameLower = selfPlayerName?.trim().toLowerCase();
+    final hasSelfFilter = selfNameLower != null && selfNameLower.isNotEmpty;
+
     final groups = <ImportPreviewEntry>[];
     final selectedGroups = <int>{};
     for (var i = 0; i < bundle.groups.length; i++) {
       final g = bundle.groups[i];
+      if (hasSelfFilter) {
+        final selfIsMember = g.memberNames.any(
+          (n) => n.toLowerCase() == selfNameLower,
+        );
+        // Gruppen ohne eigene Mitgliedschaft tauchen gar nicht erst in
+        // der Vorschau auf (siehe buildPreview-Dartdoc oben) - kein
+        // ImportPreviewEntry, kein Auswahl-Eintrag, kein Import.
+        if (!selfIsMember) continue;
+      }
       final duplicate = existingGroupNames.contains(g.name.toLowerCase());
       groups.add(
         ImportPreviewEntry(
@@ -129,6 +165,15 @@ class ImportService {
     final selectedGames = <int>{};
     for (var i = 0; i < bundle.games.length; i++) {
       final g = bundle.games[i];
+      if (hasSelfFilter) {
+        final selfParticipated = g.participants.any(
+          (p) => p.playerName?.toLowerCase() == selfNameLower,
+        );
+        // Partien ohne eigene Teilnahme tauchen gar nicht erst in der
+        // Vorschau auf (siehe buildPreview-Dartdoc oben) - kein
+        // ImportPreviewEntry, kein Auswahl-Eintrag, kein Import.
+        if (!selfParticipated) continue;
+      }
       final names = [
         for (final p in g.participants) p.playerName ?? p.anonymousLabel ?? '?',
       ];

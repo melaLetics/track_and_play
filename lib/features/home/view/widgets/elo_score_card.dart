@@ -42,8 +42,7 @@ class EloScoreCard extends ConsumerWidget {
                 ScoreGauge(score: score, label: eloScoreLabel(score)),
                 Text(
                   'Basiert auf ${elo.gamesCounted} '
-                  '${elo.gamesCounted == 1 ? 'Partie' : 'Partien'} - 50 ist '
-                  'durchschnittlich.',
+                  '${elo.gamesCounted == 1 ? 'Partie' : 'Partien'}',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),

@@ -418,6 +418,114 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
 
 ## Bekannte Fixes
 
+- **Bugfix: eigene Decks beim Import fälschlich blockiert, wenn
+  der eigene Name als Duplikat erkannt wird** (Nutzer-Bugreport:
+  "wenn mein eigener Name als 'vermutlich bereits vorhanden'
+  markiert und daher nicht importiert wird, werden auch die Decks
+  nicht importiert"). Ursache: die kürzlich eingeführte Deck<->
+  Spieler-Kopplung (`_reconcileSelection`/`_deckSection`, siehe
+  Eintrag weiter unten) prüfte NUR, ob der Deck-Besitzer unter
+  `selection.selectedPlayerIndexes` (frisch zum Import ausgewählte
+  Spieler) war - der eigene Self-Player ist aber praktisch immer
+  ein per Namens-Abgleich erkanntes Duplikat und dadurch
+  standardmäßig ABGEWÄHLT (er existiert ja lokal schon, ein
+  erneuter Import würde nur einen zweiten Spieler mit demselben
+  Namen anlegen). `ImportService.performImport` selbst hätte das
+  Deck trotzdem korrekt importiert (`playerIdByName` wird dort
+  zuerst mit dem GESAMTEN vorhandenen Datenbestand vorbelegt, ein
+  Duplikat muss also gar nicht erneut ausgewählt sein, um als
+  Besitzer aufgelöst zu werden) - nur die UI-Vorschau war
+  strenger als die tatsächliche Import-Logik.
+  Fix: neue Hilfsmethode `_resolvableOwnerNames` (genutzt von
+  `_reconcileSelection` UND `_deckSection`) zählt einen
+  Deck-Besitzer als auflösbar, wenn er ENTWEDER gerade zum Import
+  ausgewählt ist ODER laut `ImportPreviewEntry.likelyDuplicate`
+  bereits lokal existiert - unabhängig von seinem
+  Auswahl-Status. Damit bleiben eigene Decks (Besitzer = eigener,
+  als Duplikat erkannter Self-Player) jetzt korrekt vorausgewählt
+  und anhakbar.
+
+- **Gruppen-Import auf eigene Mitgliedschaft eingeschränkt**
+  (Nutzer-Präzisierung zur vorherigen Gruppen/Spieler-Kopplung:
+  "nur die Gruppen importieren, in denen man selber Mitglied
+  ist"). Ersetzt die zuvor eingeführte, an die Spieler-AUSWAHL
+  gekoppelte Gruppen-Vorauswahl (siehe vorheriger Eintrag oben) -
+  diese griff nicht richtig, weil der eigene Self-Player meist gar
+  nicht Teil von `selectedPlayerIndexes` ist (er existiert lokal
+  bereits und wird beim Namens-Abgleich als Duplikat markiert und
+  standardmäßig abgewählt) - eine Gruppe, in der nur man selbst
+  Mitglied ist, wäre dadurch nie automatisch importiert worden.
+  Jetzt stattdessen ein harter Filter direkt in
+  `ImportService.buildPreview` - analog zum bereits vorhandenen
+  Partien-Filter (selbe Namens-Abgleich-Variable `selfNameLower`,
+  jetzt vor beiden Schleifen berechnet statt nur vor der
+  Partien-Schleife): eine Gruppe erscheint nur dann überhaupt in
+  der Vorschau (wählbar/importierbar), wenn `selfPlayerName` unter
+  ihren `memberNames` vorkommt (case-insensitive) - unabhängig
+  davon, welche anderen Spieler gerade zum Import ausgewählt sind.
+  Wird kein `selfPlayerName` übergeben, entfällt der Filter (wie
+  beim Partien-Filter). `ImportWizardScreen._reconcileSelection`
+  kümmert sich jetzt nur noch um Decks (Besitzer muss unter den
+  ausgewählten Spielern sein); die Gruppen-Sektion zeigt wie die
+  Partien-Sektion einen Hinweistext, wenn Gruppen wegen fehlender
+  eigener Mitgliedschaft herausgefiltert wurden. Der zuvor an
+  `_section` ergänzte optionale `hint`-Parameter wurde wieder
+  entfernt (ungenutzt, da nur für die jetzt überholte
+  Gruppen-Erklärung gedacht).
+
+- **Import-Vorschau: Gruppen-Auswahl, Spieler->Decks/Gruppen-
+  Abhängigkeit sichtbar gemacht, Partien auf eigene Teilnahme
+  gefiltert** (vier Beobachtungen aus einem Testlauf des Nutzers:
+  Gruppen ließen sich "nicht" auswählen; Abwählen eines Spielers
+  wirkte sich unsichtbar auf dessen Decks/Partien aus; bei
+  Teilauswahl der Spieler sollten auch nur deren Gruppen importiert
+  werden; Partien ohne eigene Teilnahme sollen gar nicht erst
+  importiert werden).
+  - **Partien-Filter (neu):** `ImportService.buildPreview` bekommt
+    jetzt optional `selfPlayerName` - Partien, in denen dieser Name
+    (Namens-Abgleich wie überall sonst im Import, case-insensitive)
+    NICHT als Teilnehmer vorkommt, werden komplett aus der Vorschau
+    gefiltert (kein `ImportPreviewEntry`, nicht wählbar, nicht
+    importierbar) - Partien fremder Leute sind für den
+    personenbezogenen Tracker irrelevant. `ImportWizardScreen._loadRaw`
+    löst dafür vor `buildPreview` den lokalen Self-Player per
+    `selfPlayerProvider` auf. Wird kein Name übergeben (Provider noch
+    nicht geladen), entfällt der Filter statt fälschlich alles
+    auszublenden. Wurden Partien gefiltert, zeigt die Vorschau einen
+    Hinweistext mit der Anzahl.
+  - **Deck<->Spieler-Kopplung (neu):** `ImportWizardScreen._deckSection`
+    ersetzt für Decks die generische `_section` - ein Deck, dessen
+    Besitzer aktuell nicht unter den ausgewählten Spielern ist, zeigt
+    eine DEAKTIVIERTE Checkbox mit Untertitel "Besitzer nicht
+    ausgewählt - wird nicht importiert" (es würde beim Import ohnehin
+    per Warnung übersprungen, siehe `ImportService.performImport` -
+    das ist jetzt schon in der Vorschau sichtbar statt erst danach als
+    Warnliste).
+  - **Gruppen<->Spieler-Kopplung (neu):** neue Methode
+    `_reconcileSelection` (aufgerufen initial nach `buildPreview` UND
+    bei jeder Änderung der Spieler-Auswahl) berechnet die
+    Gruppen-Auswahl neu: nur Gruppen mit mindestens einem Mitglied
+    unter den aktuell ausgewählten Spielern bleiben ausgewählt - im
+    Unterschied zu Decks aber weiterhin bewusst FREI manuell änderbar
+    (generische `_section`, jetzt mit optionalem `hint`-Text), da eine
+    unvollständige Mitgliederliste beim Import kein Fehler ist
+    (fehlende Mitglieder werden dort schon immer einfach übersprungen).
+    `_reconcileSelection` entfernt auf demselben Weg auch Decks, deren
+    Besitzer durch die Spieler-Änderung ungültig wurde (siehe oben).
+  - **Gruppen-Auswahl selbst war KEIN Code-Defekt:**
+    `ImportPreview.groups`/`ImportSelection.selectedGroupIndexes` und
+    die `_section`-Checkbox-Logik dafür existierten strukturell schon
+    identisch zu Spielern/Decks und funktionieren. Plausibelste
+    Erklärung für die Beobachtung "kann Gruppen nicht auswählen":
+    ohne die neue automatische Vorauswahl oben war die Gruppen-Liste
+    beim Import entweder leer (kein `includeGroups` beim Export bzw.
+    `trackOtherPlayers` aus) oder enthielt für die Teilauswahl
+    irrelevante Gruppen, was sich wie "nicht nutzbar" angefühlt haben
+    dürfte - mit der neuen Kopplung an die Spieler-Auswahl sollte sich
+    das jetzt intuitiv richtig anfühlen. Bitte beim nächsten Testlauf
+    gegenprüfen und melden, falls Gruppen weiterhin nicht wie erwartet
+    erscheinen.
+
 - **App-Anzeigename zu "TAP" geändert** (Nutzerwunsch: die App
   erschien auf dem Homescreen/Desktop noch mit dem technischen
   Projektnamen "track_and_play" statt einem sprechenden Namen).
