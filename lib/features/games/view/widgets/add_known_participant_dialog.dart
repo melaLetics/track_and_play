@@ -1,21 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/mana_symbol.dart';
 import '../../../players/controller/provider/players_repository_provider.dart';
 import '../../../decks/controller/provider/decks_repository_provider.dart';
+import '../../../groups/controller/provider/groups_repository_provider.dart';
 import '../../model/game_participant_draft.dart';
 
 /// Mehrstufiger Dialog: erst einen bekannten Spieler auswählen, dann
 /// (optional) eines seiner eigenen Decks - oder ein GELIEHENES Deck
 /// eines anderen Spielers (Eintrag "Geliehenes Deck", siehe
 /// ARCHITECTURE.md) - oder "kein Deck angeben".
+///
+/// [groupId] (Nutzerwunsch): ist beim Aufruf aus GameSetupScreen eine
+/// Gruppe verlinkt, werden auf der Spieler-Auswahl-Stufe ERSTMAL nur
+/// deren Mitglieder vorgeschlagen statt aller bekannten Spieler - ein
+/// Link "Alle Spieler anzeigen" erweitert die Liste bei Bedarf (z. B.
+/// Gast ohne Gruppenmitgliedschaft). Die Deck-/Verleih-Auswahl danach
+/// bleibt unverändert ungefiltert - eine Gruppe schränkt nur ein, WER
+/// als Teilnehmer vorgeschlagen wird, nicht wessen Deck geliehen
+/// werden kann.
 Future<GameParticipantDraft?> showAddKnownParticipantDialog(
   BuildContext context, {
   required Set<int> excludePlayerIds,
+  int? groupId,
 }) {
   return showDialog<GameParticipantDraft>(
     context: context,
-    builder: (_) => _AddKnownParticipantDialog(excludePlayerIds: excludePlayerIds),
+    builder: (_) => _AddKnownParticipantDialog(
+      excludePlayerIds: excludePlayerIds,
+      groupId: groupId,
+    ),
   );
 }
 
@@ -23,8 +38,12 @@ enum _Step { pickPlayer, ownDeck, pickLender, pickLenderDeck }
 
 class _AddKnownParticipantDialog extends ConsumerStatefulWidget {
   final Set<int> excludePlayerIds;
+  final int? groupId;
 
-  const _AddKnownParticipantDialog({required this.excludePlayerIds});
+  const _AddKnownParticipantDialog({
+    required this.excludePlayerIds,
+    this.groupId,
+  });
 
   @override
   ConsumerState<_AddKnownParticipantDialog> createState() =>
@@ -38,6 +57,14 @@ class _AddKnownParticipantDialogState
   String? _selectedPlayerName;
   int? _lenderId;
   String? _lenderName;
+
+  /// Nur relevant, wenn widget.groupId gesetzt ist: true, sobald der
+  /// Nutzer explizit "Alle Spieler anzeigen" angetippt hat - dann
+  /// bleibt für den Rest dieser Dialog-Instanz die ungefilterte Liste
+  /// aktiv (bewusst kein Zurück-Toggle, da sonst eine bereits
+  /// getroffene Auswahl außerhalb der Gruppe wieder aus der Liste
+  /// verschwinden könnte).
+  bool _showAllPlayers = false;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +81,10 @@ class _AddKnownParticipantDialogState
   }
 
   Widget _buildPickPlayerStep(BuildContext context) {
-    final playersAsync = ref.watch(allActivePlayersProvider);
+    final restrictToGroup = widget.groupId != null && !_showAllPlayers;
+    final playersAsync = restrictToGroup
+        ? ref.watch(groupMembersProvider(widget.groupId!))
+        : ref.watch(allActivePlayersProvider);
     return AlertDialog(
       title: const Text('Bekannten Spieler auswählen'),
       content: SizedBox(
@@ -63,12 +93,35 @@ class _AddKnownParticipantDialogState
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stack) => Text('Fehler: $error'),
           data: (players) {
+            // !p.archived zusätzlich nötig, weil groupMembersProvider
+            // (anders als allActivePlayersProvider) archivierte
+            // Mitglieder NICHT herausfiltert (siehe
+            // GroupsRepository.watchMembers) - ohne diesen Filter
+            // könnten bei gruppen-eingeschränkter Anzeige archivierte
+            // Spieler vorgeschlagen werden, was vorher nie möglich war.
             final candidates = players
-                .where((p) => !widget.excludePlayerIds.contains(p.id))
+                .where(
+                  (p) => !widget.excludePlayerIds.contains(p.id) && !p.archived,
+                )
                 .toList();
+            final expandLink = restrictToGroup
+                ? TextButton(
+                    onPressed: () => setState(() => _showAllPlayers = true),
+                    child: const Text('Alle Spieler anzeigen'),
+                  )
+                : null;
             if (candidates.isEmpty) {
-              return const Text(
-                'Keine weiteren bekannten Spieler verfügbar.',
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    restrictToGroup
+                        ? 'Keine weiteren Gruppenmitglieder verfügbar.'
+                        : 'Keine weiteren bekannten Spieler verfügbar.',
+                  ),
+                  if (expandLink != null) expandLink,
+                ],
               );
             }
             return ListView(
@@ -83,6 +136,7 @@ class _AddKnownParticipantDialogState
                       _step = _Step.ownDeck;
                     }),
                   ),
+                if (expandLink != null) expandLink,
               ],
             );
           },
@@ -122,8 +176,9 @@ class _AddKnownParticipantDialogState
                 for (final deck in decks)
                   ListTile(
                     title: Text(deck.name),
-                    subtitle: Text(
-                      deck.colorIdentity.isEmpty ? 'Farblos' : deck.colorIdentity,
+                    subtitle: _DeckSubtitle(
+                      colorIdentity: deck.colorIdentity,
+                      bracket: deck.bracket,
                     ),
                     onTap: () => Navigator.of(context).pop(
                       GameParticipantDraft(
@@ -220,10 +275,9 @@ class _AddKnownParticipantDialogState
                 for (final deck in decks)
                   ListTile(
                     title: Text(deck.name),
-                    subtitle: Text(
-                      deck.colorIdentity.isEmpty
-                          ? 'Farblos'
-                          : deck.colorIdentity,
+                    subtitle: _DeckSubtitle(
+                      colorIdentity: deck.colorIdentity,
+                      bracket: deck.bracket,
                     ),
                     onTap: () => Navigator.of(context).pop(
                       GameParticipantDraft(
@@ -251,6 +305,36 @@ class _AddKnownParticipantDialogState
           }),
           child: const Text('Zurück'),
         ),
+      ],
+    );
+  }
+}
+
+/// Subtitle-Zeile für einen Deck-Eintrag in den Deck-Auswahllisten
+/// dieser Datei (Nutzerwunsch, "Kosmetik" bei der Mitspieler-Auswahl):
+/// echte Mana-Symbole statt des rohen WUBRG-Buchstaben-Kürzels (siehe
+/// ManaSymbolRow, core/widgets/mana_symbol.dart - bereits an anderer
+/// Stelle im Statistik-Dashboard genutzt), zusätzlich das Bracket
+/// (siehe Decks.bracket), aber NUR wenn eines gesetzt ist - anders
+/// als die Farbidentität (die auch als "farblos" immer einen Wert
+/// zeigt) bleibt das Bracket bei den meisten Decks unausgefüllt und
+/// soll dann nicht als "Bracket null" o. ä. auftauchen.
+class _DeckSubtitle extends StatelessWidget {
+  final String colorIdentity;
+  final int? bracket;
+
+  const _DeckSubtitle({required this.colorIdentity, required this.bracket});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ManaSymbolRow(colorIdentity: colorIdentity),
+        if (bracket != null) ...[
+          const SizedBox(width: 8),
+          Text('Bracket $bracket'),
+        ],
       ],
     );
   }

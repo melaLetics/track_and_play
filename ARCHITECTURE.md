@@ -418,6 +418,71 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
 
 ## Bekannte Fixes
 
+- **Mana-Symbole + Bracket in den Deck-Auswahllisten** (Nutzerwunsch,
+  "Kosmetik" bei der Mitspieler-Auswahl: statt des rohen WUBRG-
+  Buchstaben-Kürzels unter dem Deck-Namen sollen echte Mana-Icons
+  erscheinen, dazu das Bracket, sofern gesetzt). Betrifft die
+  ListTile-Subtitles in den Deck-Auswahllisten von
+  `add_known_participant_dialog.dart` (beide Schritte: eigenes Deck
+  und geliehenes Deck) sowie `select_deck_dialog.dart` (ebenfalls
+  beide Schritte, für "Deck ändern" eines bereits hinzugefügten
+  Teilnehmers) - alle vier Stellen zeigten bisher `deck.colorIdentity`
+  als reinen Text ("Farblos"/"WU"/...).
+  Für die Mana-Icons wird die bereits vorhandene, aber bislang nur im
+  Statistik-Dashboard genutzte `ManaSymbolRow` wiederverwendet (siehe
+  core/widgets/mana_symbol.dart - nutzt das Paket
+  `mana_icons_flutter`, das schon vorher in pubspec.yaml stand). Neu
+  in beiden Dialog-Dateien je ein kleines privates `_DeckSubtitle`-
+  Widget (Mana-Symbole + optional "Bracket N", nur wenn
+  `deck.bracket != null` - anders als die Farbidentität, die immer
+  einen Wert zeigt (auch "farblos"), bleibt das Bracket bei den
+  meisten Decks unausgefüllt und soll dann nicht auftauchen). Bewusst
+  in JEDER der beiden Dateien eine eigene, nicht geteilte Kopie
+  dieses winzigen Widgets - beide Dialoge bleiben laut ihrer
+  bestehenden Klassendoku eigenständig, eine gemeinsame öffentliche
+  Datei dafür wäre unverhältnismäßig.
+  Bewusst NICHT angefasst: die Farbidentitäts-Anzeige an anderen
+  Stellen außerhalb der Mitspieler-/Deck-Auswahl (z. B.
+  `_ParticipantCard` in game_setup_screen.dart, game_detail_screen.dart,
+  player_detail_screen.dart, der Import-Screen) - dort ging es dem
+  Nutzer nicht um "Kosmetik bei der Mitspieler-Auswahl", außerdem
+  zeigen einige dieser Stellen (z. B. player_detail_screen.dart) das
+  Bracket bereits als Text in einer zusammengesetzten "·"-Zeile, was
+  ein eigenes Redesign wäre statt der hier gewünschten reinen
+  Icon-Ersetzung.
+
+- **Spieler-Auswahl bei verlinkter Gruppe zeigt erst Gruppenmitglieder**
+  (Nutzerwunsch: beim Erfassen einer Partie mit verlinkter Gruppe
+  sollen bei "Bekannten Spieler hinzufügen" zunächst nur deren
+  Mitglieder vorgeschlagen werden statt aller bekannten Spieler).
+  `showAddKnownParticipantDialog`/`_AddKnownParticipantDialog`
+  bekommen einen neuen optionalen Parameter `groupId`
+  (`GameSetupScreen._addKnownParticipant` übergibt dafür das aktuell
+  im Setup gewählte `_groupId`). Ist eine Gruppe gesetzt, liest die
+  Spieler-Auswahl-Stufe zunächst `groupMembersProvider(groupId)` statt
+  `allActivePlayersProvider` - identische Darstellung/Auswahl-Logik
+  wie bisher, nur eine andere Datenquelle. Bewusst KEINE harte
+  Einschränkung: ein Link "Alle Spieler anzeigen" unterhalb der Liste
+  (auch im Leerfall "Keine weiteren Gruppenmitglieder verfügbar")
+  erweitert bei Bedarf auf alle bekannten Spieler (z. B. Gast ohne
+  Gruppenmitgliedschaft) - bewusst ohne Rückweg zur eingeschränkten
+  Liste innerhalb derselben Dialog-Instanz, damit eine bereits
+  getroffene Auswahl außerhalb der Gruppe nicht wieder aus der Liste
+  verschwinden kann.
+  Dabei eine Inkonsistenz in der bestehenden Datengrundlage entdeckt
+  und mitbehoben: `GroupsRepository.watchMembers` (Grundlage von
+  `groupMembersProvider`) filtert - anders als
+  `allActivePlayersProvider` - archivierte Spieler NICHT heraus (dort
+  unverändert gelassen, da group_detail_screen.dart archivierte
+  Mitglieder ggf. bewusst mit anzeigen möchte). Im neuen
+  Spieler-Auswahl-Dialog daher zusätzlich lokal `!p.archived`
+  gefiltert, damit über die Gruppen-Einschränkung nie ein archivierter
+  Spieler vorgeschlagen werden kann - das war vorher (rein über
+  allActivePlayersProvider) ohnehin nie möglich.
+  Die Deck-/Verleih-Auswahl-Stufen danach bleiben unverändert
+  ungefiltert - die Gruppe schränkt nur ein, WER als Teilnehmer
+  vorgeschlagen wird, nicht wessen Deck sich jemand leihen kann.
+
 - **Fix: Sitzplatz-Wähler machte den Setup-Screen unscrollbar**
   (Nutzer-Bugreport direkt nach der Einführung des Sitzplatz-Wählers
   unten: "kann nicht so weit runter scrollen, um die Anordnung zu

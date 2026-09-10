@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/mana_symbol.dart';
 import '../../../decks/controller/provider/decks_repository_provider.dart';
 import '../../../players/controller/provider/players_repository_provider.dart';
 
@@ -100,10 +101,9 @@ class _SelectDeckDialogState extends ConsumerState<_SelectDeckDialog> {
                 for (final deck in decks)
                   ListTile(
                     title: Text(deck.name),
-                    subtitle: Text(
-                      deck.colorIdentity.isEmpty
-                          ? 'Farblos'
-                          : deck.colorIdentity,
+                    subtitle: _DeckSubtitle(
+                      colorIdentity: deck.colorIdentity,
+                      bracket: deck.bracket,
                     ),
                     onTap: () => Navigator.of(context).pop(
                       DeckSelection(
@@ -194,10 +194,9 @@ class _SelectDeckDialogState extends ConsumerState<_SelectDeckDialog> {
                 for (final deck in decks)
                   ListTile(
                     title: Text(deck.name),
-                    subtitle: Text(
-                      deck.colorIdentity.isEmpty
-                          ? 'Farblos'
-                          : deck.colorIdentity,
+                    subtitle: _DeckSubtitle(
+                      colorIdentity: deck.colorIdentity,
+                      bracket: deck.bracket,
                     ),
                     onTap: () => Navigator.of(context).pop(
                       DeckSelection(
@@ -223,6 +222,37 @@ class _SelectDeckDialogState extends ConsumerState<_SelectDeckDialog> {
           }),
           child: const Text('Zurück'),
         ),
+      ],
+    );
+  }
+}
+
+/// Subtitle-Zeile für einen Deck-Eintrag in den Deck-Auswahllisten
+/// dieser Datei (Nutzerwunsch, "Kosmetik" bei der Mitspieler-Auswahl):
+/// echte Mana-Symbole statt des rohen WUBRG-Buchstaben-Kürzels (siehe
+/// ManaSymbolRow, core/widgets/mana_symbol.dart - bereits an anderer
+/// Stelle im Statistik-Dashboard genutzt), zusätzlich das Bracket
+/// (siehe Decks.bracket), aber NUR wenn eines gesetzt ist. Bewusst
+/// dieselbe kleine Klasse wie in add_known_participant_dialog.dart,
+/// nicht geteilt - beide Dialoge bleiben eigenständig (siehe
+/// Klassendoku von showSelectDeckDialog), eine zusätzliche
+/// öffentliche Datei für dieses winzige Widget wäre unverhältnismäßig.
+class _DeckSubtitle extends StatelessWidget {
+  final String colorIdentity;
+  final int? bracket;
+
+  const _DeckSubtitle({required this.colorIdentity, required this.bracket});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ManaSymbolRow(colorIdentity: colorIdentity),
+        if (bracket != null) ...[
+          const SizedBox(width: 8),
+          Text('Bracket $bracket'),
+        ],
       ],
     );
   }

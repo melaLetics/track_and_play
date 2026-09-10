@@ -117,6 +117,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     final draft = await showAddKnownParticipantDialog(
       context,
       excludePlayerIds: _knownPlayerIds,
+      groupId: _groupId,
     );
     if (draft != null) {
       setState(() => _participants.add(_withDefaults(draft)));
