@@ -28,6 +28,11 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.0.1
 
+  # Bildschirm waach halten waehrend einer Live-Partie (Nutzerwunsch -
+  # sonst schaltet sich der Bildschirm nach wenigen Sekunden Inaktivitaet
+  # ab, siehe LiveGameScreen)
+  wakelock_plus: ^1.4.0
+
   # JSON (de)serialisierung fuer Export-/Import-Bundles laeuft ueber
   # dart:convert (jsonEncode/jsonDecode) + die von Drift generierten
   # toJson()/fromJson()-Methoden - kein Zusatzpaket noetig.
@@ -98,6 +103,8 @@ flutter:
     - assets/badges/special/newbie.png
     - assets/badges/special/weekend.png
     - assets/badges/special/shame.png
+    - assets/badges/special/Feierabend-Worrior.png
+    - assets/badges/special/Week-Worrior.png
     - assets/badges/special/win_five_diff_decks.png
     - assets/badges/special/win_ten_diff_decks.png
     - assets/badges/special/win_twentyfive_diff_decks.png

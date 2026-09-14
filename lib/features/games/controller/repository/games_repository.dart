@@ -31,6 +31,22 @@ class GameParticipantView {
   });
 }
 
+/// Ein EIGENES Deck des Ich-Spielers, das in einer Partie von einem
+/// ANDEREN Teilnehmer gespielt wurde (Deck-Verleih) - Teil von
+/// [SelfGameStatsRow.lentDecks], Grundlage für die "Wenn andere meine
+/// Decks spielen"-Auswertung (siehe lending_stats.dart).
+class LentDeckInfo {
+  final int deckId;
+  final String deckName;
+  final String colorIdentity;
+
+  const LentDeckInfo({
+    required this.deckId,
+    required this.deckName,
+    required this.colorIdentity,
+  });
+}
+
 /// Eine abgeschlossene Partien-Teilnahme des Ich-Spielers, aufbereitet
 /// für das Statistik-Dashboard (siehe lib/features/stats/). Enthält
 /// bewusst nur, was dort für Siegquote gesamt/pro Deck sowie die
@@ -72,6 +88,17 @@ class SelfGameStatsRow {
   /// achievement_engine.dart).
   final bool opponentPlayedOwnDeck;
 
+  /// Wie [opponentPlayedOwnDeck], aber statt eines reinen Bool mit
+  /// Identität: alle EIGENEN Decks des Ich-Spielers, die in DIESER
+  /// Partie von einem anderen Teilnehmer gespielt wurden (meist 0 oder
+  /// 1 Eintrag, bei mehreren gleichzeitig verliehenen eigenen Decks in
+  /// derselben Partie entsprechend mehr). Grundlage für
+  /// computeLendingStats (lending_stats.dart) - im Unterschied zu
+  /// [opponentPlayedOwnDeck] lässt sich damit auch die Bilanz JE
+  /// verliehenem Deck auswerten, nicht nur "irgendein Deck wurde
+  /// verliehen".
+  final List<LentDeckInfo> lentDecks;
+
   /// Umgekehrter Fall des Deck-Verleihs: true, wenn das vom
   /// Ich-Spieler in DIESER Partie gespielte Deck (falls vorhanden)
   /// tatsächlich Decks.ownerPlayerId == Ich-Spieler ist - also KEIN
@@ -96,6 +123,7 @@ class SelfGameStatsRow {
     required this.durationSeconds,
     required this.isDraw,
     required this.opponentPlayedOwnDeck,
+    required this.lentDecks,
     required this.isOwnDeck,
   });
 }
@@ -304,15 +332,24 @@ class GamesRepository {
         // dieser Partie ein Deck, dessen wahrer Besitzer der
         // Ich-Spieler ist (Decks.ownerPlayerId), unabhängig davon wer
         // es laut GameParticipants.deckId tatsächlich spielt? Siehe
-        // SelfGameStatsRow.opponentPlayedOwnDeck.
+        // SelfGameStatsRow.opponentPlayedOwnDeck/lentDecks - Letzteres
+        // sammelt zusätzlich, UM WELCHES Deck es sich handelt (nicht
+        // nur die kollabierte Ja/Nein-Auskunft).
         var opponentPlayedOwnDeck = false;
+        final lentDecks = <LentDeckInfo>[];
         for (final row in participantsInGame) {
           final participant = row.readTable(db.gameParticipants);
           if (participant.playerId == selfPlayerId) continue;
           final deck = row.readTableOrNull(db.decks);
           if (deck != null && deck.ownerPlayerId == selfPlayerId) {
             opponentPlayedOwnDeck = true;
-            break;
+            lentDecks.add(
+              LentDeckInfo(
+                deckId: deck.id,
+                deckName: deck.name,
+                colorIdentity: deck.colorIdentity,
+              ),
+            );
           }
         }
 
@@ -323,6 +360,7 @@ class GamesRepository {
             selfRow.readTableOrNull(db.decks),
             participantsInGame.length,
             opponentPlayedOwnDeck: opponentPlayedOwnDeck,
+            lentDecks: lentDecks,
             selfPlayerId: selfPlayerId,
           ),
         );
@@ -338,6 +376,7 @@ class GamesRepository {
     Deck? deck,
     int participantCount, {
     required bool opponentPlayedOwnDeck,
+    required List<LentDeckInfo> lentDecks,
     required int selfPlayerId,
   }) {
     return SelfGameStatsRow(
@@ -355,6 +394,7 @@ class GamesRepository {
       durationSeconds: game.durationSeconds,
       isDraw: game.isDraw,
       opponentPlayedOwnDeck: opponentPlayedOwnDeck,
+      lentDecks: lentDecks,
       isOwnDeck: deck == null || deck.ownerPlayerId == selfPlayerId,
     );
   }

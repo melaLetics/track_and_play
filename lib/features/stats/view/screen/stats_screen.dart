@@ -10,6 +10,7 @@ import '../../../games/model/game_mode_labels.dart';
 import '../../../groups/controller/provider/groups_repository_provider.dart';
 import '../../../players/controller/provider/players_repository_provider.dart';
 import '../../../settings/controller/provider/app_settings_provider.dart';
+import '../../model/lending_stats.dart';
 import '../../model/player_performance_stats.dart';
 import '../../model/player_stats.dart';
 
@@ -103,6 +104,7 @@ class _StatsBody extends ConsumerWidget {
         final byColor = computeWinRateByColorIdentity(filtered);
         final byPosition = computeWinRateByStartPosition(filtered);
         final byDuration = computeWinRateByDuration(filtered);
+        final lending = computeLendingStats(filtered);
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -259,6 +261,58 @@ class _StatsBody extends ConsumerWidget {
                   ),
               ],
               const SizedBox(height: 20),
+              // "Wenn andere meine Decks spielen" (Nutzerfrage "Gewinne
+              // ich gegen meine eigenen Decks oder verliere ich eher?")
+              // - Gegenrichtung zu "Nach Deck" oben: dort geht es darum,
+              // wie ICH mit einem Deck abschneide, hier darum, wie ich
+              // abschneide, wenn ein GEGNER eines meiner Decks spielt
+              // (Deck-Verleih, siehe lending_stats.dart/
+              // SelfGameStatsRow.lentDecks).
+              Text(
+                'Wenn andere meine Decks spielen',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Meine Siegquote in Partien, in denen ein Gegner eines '
+                'meiner eigenen Decks gespielt hat.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              if (lending.gamesPlayed == 0)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    'Noch keine Partien in dieser Auswahl, in denen ein '
+                    'Gegner eines meiner Decks gespielt hat.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                )
+              else ...[
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${lending.gamesPlayed} '
+                          '${lending.gamesPlayed == 1 ? 'Partie' : 'Partien'} '
+                          '- ${lending.wins} Siege',
+                        ),
+                        Text(
+                          _formatRate(lending.winRate),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final deck in lending.byDeck)
+                  _buildLentDeckCard(context, deck),
+              ],
+              const SizedBox(height: 20),
               ..._bucketSection(
                 context,
                 title: 'Nach Farbidentität',
@@ -301,6 +355,30 @@ class _StatsBody extends ConsumerWidget {
         // Nur noch die Mana-Symbole statt zusaetzlich auch noch der
         // rohe WUBRG-String (Nutzerwunsch) - bei farblosen Decks zeigt
         // ManaSymbolRow bereits das eindeutige Colorless-Symbol.
+        subtitle: ManaSymbolRow(colorIdentity: deck.colorIdentity, size: 24),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(_formatRate(deck.winRate)),
+            Text(
+              '${deck.wins}/${deck.gamesPlayed}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Wie [_buildDeckCard], aber fuer die Gegenrichtung (siehe
+  /// "Wenn andere meine Decks spielen" oben): [deck] ist hier immer ein
+  /// EIGENES Deck, das ein Gegner gespielt hat - keine Eigene/Fremde-
+  /// Unterscheidung noetig.
+  Widget _buildLentDeckCard(BuildContext context, LentDeckStats deck) {
+    return Card(
+      child: ListTile(
+        title: Text(deck.deckLabel),
         subtitle: ManaSymbolRow(colorIdentity: deck.colorIdentity, size: 24),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,

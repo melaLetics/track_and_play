@@ -314,32 +314,53 @@ Map<String, AchievementStatus> _computeSpecial(List<SelfGameStatsRow> sorted) {
     }
   }
 
+  // Für WEEKEND WARRIOR sowie die beiden Serien-Badges unten
+  // (FEIERABEND-WORRIOR, WEEK-WORRIOR) genügt derselbe Kalendertage-Satz
+  // (an denen der Ich-Spieler mindestens eine Partie hatte) - einmal
+  // berechnet und für alle drei Prüfungen wiederverwendet.
+  final uniqueDates = sorted
+      .map((r) => DateTime(r.playedAt.year, r.playedAt.month, r.playedAt.day))
+      .toSet()
+      .toList()
+    ..sort();
+
   // WEEKEND WARRIOR: drei chronologisch aufeinanderfolgende
   // Kalendertage Freitag-Samstag-Sonntag mit je mindestens einer
   // Partie - 1:1 aus calc_special_moments.dart übernommen.
-  if (sorted.length > 2) {
-    final uniqueDates = sorted
-        .map((r) => DateTime(r.playedAt.year, r.playedAt.month, r.playedAt.day))
-        .toSet()
-        .toList()
-      ..sort();
-    if (uniqueDates.length > 2) {
-      for (var i = 0; i < uniqueDates.length - 2; i++) {
-        final d1 = uniqueDates[i];
-        final d2 = uniqueDates[i + 1];
-        final d3 = uniqueDates[i + 2];
-        final consecutive =
-            d2.difference(d1).inDays == 1 && d3.difference(d2).inDays == 1;
-        final isFriSatSun = d1.weekday == DateTime.friday &&
-            d2.weekday == DateTime.saturday &&
-            d3.weekday == DateTime.sunday;
-        if (consecutive && isFriSatSun) {
-          result['weekend'] = AchievementStatus(unlocked: true, achievedAt: d3);
-          break;
-        }
+  if (uniqueDates.length > 2) {
+    for (var i = 0; i < uniqueDates.length - 2; i++) {
+      final d1 = uniqueDates[i];
+      final d2 = uniqueDates[i + 1];
+      final d3 = uniqueDates[i + 2];
+      final consecutive =
+          d2.difference(d1).inDays == 1 && d3.difference(d2).inDays == 1;
+      final isFriSatSun = d1.weekday == DateTime.friday &&
+          d2.weekday == DateTime.saturday &&
+          d3.weekday == DateTime.sunday;
+      if (consecutive && isFriSatSun) {
+        result['weekend'] = AchievementStatus(unlocked: true, achievedAt: d3);
+        break;
       }
     }
   }
+
+  // FEIERABEND-WORRIOR (Nutzerwunsch): fünf chronologisch
+  // aufeinanderfolgende Kalendertage Montag-Freitag (eine komplette
+  // Arbeitswoche) mit je mindestens einer Partie.
+  result['feierabend_worrior'] = _findConsecutiveWeekdayRun(
+    uniqueDates,
+    length: 5,
+    startWeekday: DateTime.monday,
+  );
+
+  // WEEK-WORRIOR (Nutzerwunsch): sieben chronologisch aufeinanderfolgende
+  // Kalendertage Montag-Sonntag (eine komplette Kalenderwoche) mit je
+  // mindestens einer Partie.
+  result['week_worrior'] = _findConsecutiveWeekdayRun(
+    uniqueDates,
+    length: 7,
+    startWeekday: DateTime.monday,
+  );
 
   // 5 / 10 / 25 VERSCHIEDENE GEWONNENE DECKS
   final wonWithDecks = <int>{};
@@ -363,4 +384,41 @@ Map<String, AchievementStatus> _computeSpecial(List<SelfGameStatsRow> sorted) {
   }
 
   return result;
+}
+
+/// Sucht das chronologisch ERSTE Fenster von [length] lückenlos
+/// aufeinanderfolgenden Kalendertagen (je ein Tag Abstand, siehe
+/// [dates] - sortiert, eindeutig), dessen erster Tag auf [startWeekday]
+/// fällt - z. B. eine komplette Montag-Freitag- bzw. Montag-Sonntag-
+/// Serie. Liefert [AchievementStatus.locked], falls kein solches
+/// Fenster existiert. Verallgemeinert das WEEKEND-WARRIOR-Fenster in
+/// [_computeSpecial] (dort fest auf 3 Tage/Freitag) für beliebige
+/// Fensterlängen/Startwochentage - genutzt für FEIERABEND-WORRIOR
+/// (5 Tage/Montag) und WEEK-WORRIOR (7 Tage/Montag).
+AchievementStatus _findConsecutiveWeekdayRun(
+  List<DateTime> dates, {
+  required int length,
+  required int startWeekday,
+}) {
+  if (dates.length < length) return AchievementStatus.locked;
+
+  for (var i = 0; i <= dates.length - length; i++) {
+    if (dates[i].weekday != startWeekday) continue;
+
+    var isConsecutive = true;
+    for (var j = i + 1; j < i + length; j++) {
+      if (dates[j].difference(dates[j - 1]).inDays != 1) {
+        isConsecutive = false;
+        break;
+      }
+    }
+    if (isConsecutive) {
+      return AchievementStatus(
+        unlocked: true,
+        achievedAt: dates[i + length - 1],
+      );
+    }
+  }
+
+  return AchievementStatus.locked;
 }

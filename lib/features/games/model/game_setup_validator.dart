@@ -108,18 +108,21 @@ String? validateGameResult({
   final setupError = validateGameSetup(mode: mode, participants: participants);
   if (setupError != null) return setupError;
 
+  // Bei einem Unentschieden ist keine Platzierung nötig (Nutzerwunsch -
+  // vorher musste man trotzdem Platzierungen vergeben, um speichern zu
+  // können). Laut App-Konvention gelten bei einem Unentschieden ohnehin
+  // alle Teilnehmer als Sieger (siehe GameParticipantDraft.isWinner,
+  // placement == 1) - die aufrufende Stelle setzt placement:1 für alle
+  // Teilnehmer selbst, unabhängig von etwaigen UI-Eingaben.
+  if (isDraw) {
+    return null;
+  }
+
   if (participants.any((p) => p.placement == null)) {
     return 'Bitte vergib für jeden Teilnehmer eine Platzierung.';
   }
 
   final placements = participants.map((p) => p.placement!).toList();
-
-  if (isDraw) {
-    if (placements.toSet().length != 1) {
-      return 'Bei einem Unentschieden müssen alle Teilnehmer denselben Platz belegen.';
-    }
-    return null;
-  }
 
   switch (mode) {
     case GameMode.commander:

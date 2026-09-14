@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../../database/app_database.dart';
 import '../../controller/provider/games_repository_provider.dart';
@@ -15,8 +16,10 @@ import '../../model/live_participant.dart';
 /// Teilnehmer, Laufzeit-Timer und automatische "First Blood"-Markierung
 /// (siehe GamesRepository.recordLifeChange). Eine Live-Partie ist nicht
 /// pausierbar - sie läuft bis "Partie beenden" gedrückt wird. Erzwingt
-/// während der gesamten Anzeigedauer Querformat (siehe initState/dispose
-/// - Nutzerwunsch, passend zum "auf den Tisch gelegt"-Look).
+/// während der gesamten Anzeigedauer Querformat UND hält den Bildschirm
+/// wach (siehe initState/dispose - beides Nutzerwunsch, passend zum
+/// "auf den Tisch gelegt"-Look bzw. weil sonst der Bildschirm nach
+/// wenigen Sekunden Inaktivität abschaltet).
 class LiveGameScreen extends ConsumerStatefulWidget {
   final int gameId;
   final GameMode mode;
@@ -77,6 +80,10 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    // Bildschirm während der Live-Partie wach halten (Nutzer-Bugreport:
+    // Bildschirm ging nach wenigen Sekunden aus) - wird beim Verlassen
+    // des Screens in dispose() wieder aufgehoben.
+    WakelockPlus.enable();
   }
 
   @override
@@ -88,6 +95,7 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    WakelockPlus.disable();
     super.dispose();
   }
 

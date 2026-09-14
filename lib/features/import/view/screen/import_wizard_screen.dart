@@ -214,32 +214,9 @@ class _ImportWizardScreenState extends ConsumerState<ImportWizardScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              if (preview.players.isNotEmpty)
-                _section(
-                  'Spieler',
-                  preview.players,
-                  _selection.selectedPlayerIndexes,
-                  (s) => setState(() {
-                    final updated =
-                        _selection.copyWith(selectedPlayerIndexes: s);
-                    // Decks/Gruppen an die neue Spieler-Auswahl
-                    // anpassen (siehe _reconcileSelection) - sonst
-                    // bliebe z. B. ein Deck eines gerade abgewählten
-                    // Spielers weiterhin (unsichtbar) ausgewählt.
-                    _selection = _reconcileSelection(preview, updated);
-                  }),
-                ),
+              if (preview.players.isNotEmpty) _playerSection(preview),
               if (preview.bundle.groups.isNotEmpty) ...[
-                if (preview.groups.isNotEmpty)
-                  _section(
-                    'Gruppen',
-                    preview.groups,
-                    _selection.selectedGroupIndexes,
-                    (s) => setState(
-                      () => _selection =
-                          _selection.copyWith(selectedGroupIndexes: s),
-                    ),
-                  ),
+                if (preview.groups.isNotEmpty) _groupSection(preview),
                 if (preview.bundle.groups.length > preview.groups.length)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -361,7 +338,7 @@ class _ImportWizardScreenState extends ConsumerState<ImportWizardScreen> {
                   resolvableOwnerNames.contains(owner.toLowerCase());
               final subtitleParts = <String>[
                 if (entry.subtitle != null) entry.subtitle!,
-                if (entry.likelyDuplicate) 'vermutlich bereits vorhanden',
+                if (entry.likelyDuplicate) _deckDuplicateNote(entry),
                 if (!ownerResolvable)
                   'Besitzer nicht ausgewählt/vorhanden - wird nicht '
                       'importiert',
@@ -376,19 +353,8 @@ class _ImportWizardScreenState extends ConsumerState<ImportWizardScreen> {
                     _selection.selectedDeckIndexes.contains(entry.index),
                 onChanged: !ownerResolvable
                     ? null
-                    : (checked) {
-                        final next =
-                            Set<int>.from(_selection.selectedDeckIndexes);
-                        if (checked ?? false) {
-                          next.add(entry.index);
-                        } else {
-                          next.remove(entry.index);
-                        }
-                        setState(
-                          () => _selection =
-                              _selection.copyWith(selectedDeckIndexes: next),
-                        );
-                      },
+                    : (checked) =>
+                        _onDeckCheckboxChanged(entry, checked ?? false),
               );
             },
           ),
@@ -396,19 +362,153 @@ class _ImportWizardScreenState extends ConsumerState<ImportWizardScreen> {
     );
   }
 
-  Widget _section(
-    String title,
-    List<ImportPreviewEntry> entries,
-    Set<int> selected,
-    ValueChanged<Set<int>> onChanged,
-  ) {
+  /// Untertitel-Zusatz für ein als Duplikat erkanntes Deck (siehe
+  /// ImportPreviewEntry.likelyDuplicate) - unterscheidet, ob das
+  /// bestehende lokale Deck inhaltlich identisch ist (dann wie bisher
+  /// nur ein Hinweis) oder abweicht (dann Anzahl der Abweichungen
+  /// bzw., falls der Nutzer im "Deck aktualisieren?"-Dialog bereits
+  /// zugestimmt hat, dass es beim Import aktualisiert wird - siehe
+  /// _onDeckCheckboxChanged/_confirmDeckMerge).
+  String _deckDuplicateNote(ImportPreviewEntry entry) {
+    if (entry.deckFieldDiffs.isEmpty) {
+      return 'vermutlich bereits vorhanden';
+    }
+    final merging = _selection.mergeDeckIndexes.contains(entry.index);
+    return merging
+        ? 'wird aktualisiert (${entry.deckFieldDiffs.length} '
+            'Abweichung(en) übernommen)'
+        : 'vermutlich bereits vorhanden, weicht in '
+            '${entry.deckFieldDiffs.length} Punkt(en) ab';
+  }
+
+  /// Reagiert auf das (Ab-)Wählen eines Deck-Eintrags. Wird ein bisher
+  /// abgewähltes Duplikat mit tatsächlichen inhaltlichen Abweichungen
+  /// (siehe ImportPreviewEntry.deckFieldDiffs) angehakt, wird zuerst
+  /// per Dialog nachgefragt, ob die Werte aus dem Import übernommen
+  /// werden sollen (siehe _confirmDeckMerge) - erst danach wird die
+  /// Auswahl tatsächlich geändert. Ein identisches Duplikat (keine
+  /// Abweichungen) verhält sich wie bisher (kein Dialog, einfacher
+  /// Import als separater Datensatz). Ein Abbruch des Dialogs lässt
+  /// die Auswahl unverändert; das Abwählen eines bereits zum
+  /// Aktualisieren markierten Eintrags hebt die Merge-Markierung
+  /// wieder auf.
+  Future<void> _onDeckCheckboxChanged(
+    ImportPreviewEntry entry,
+    bool checked,
+  ) async {
+    final alreadySelected =
+        _selection.selectedDeckIndexes.contains(entry.index);
+    if (checked &&
+        !alreadySelected &&
+        entry.likelyDuplicate &&
+        entry.deckFieldDiffs.isNotEmpty) {
+      final merge = await _confirmDeckMerge(entry);
+      if (merge == null) return;
+      setState(() {
+        final decks = Set<int>.from(_selection.selectedDeckIndexes)
+          ..add(entry.index);
+        final merges = Set<int>.from(_selection.mergeDeckIndexes);
+        if (merge) {
+          merges.add(entry.index);
+        } else {
+          merges.remove(entry.index);
+        }
+        _selection = _selection.copyWith(
+          selectedDeckIndexes: decks,
+          mergeDeckIndexes: merges,
+        );
+      });
+      return;
+    }
+    setState(() {
+      final decks = Set<int>.from(_selection.selectedDeckIndexes);
+      final merges = Set<int>.from(_selection.mergeDeckIndexes);
+      if (checked) {
+        decks.add(entry.index);
+      } else {
+        decks.remove(entry.index);
+        merges.remove(entry.index);
+      }
+      _selection = _selection.copyWith(
+        selectedDeckIndexes: decks,
+        mergeDeckIndexes: merges,
+      );
+    });
+  }
+
+  /// true = zusammenführen (das bestehende lokale Deck wird mit den
+  /// abweichenden Werten aus dem Import überschrieben), false =
+  /// separates neues Deck anlegen (wie bisheriges Verhalten), null =
+  /// Dialog abgebrochen (siehe _onDeckCheckboxChanged).
+  Future<bool?> _confirmDeckMerge(ImportPreviewEntry entry) {
+    final existingLabel = entry.matchedExistingLabel ?? entry.title;
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Deck aktualisieren?'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Das Deck "$existingLabel" existiert bereits, weicht aber '
+                'vom Import ab:',
+              ),
+              const SizedBox(height: 8),
+              for (final diff in entry.deckFieldDiffs)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    '• $diff',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              const SizedBox(height: 8),
+              const Text(
+                'Sollen die Werte aus dem Import in das bestehende Deck '
+                'übernommen werden?',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Nein, separates Deck'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Ja, aktualisieren'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Zeigt die Spieler-Auswahl - mit Sonderbehandlung für als
+  /// Duplikat erkannte Einträge (siehe ImportPreviewEntry.
+  /// likelyDuplicate): wird ein solcher Eintrag angehakt, erscheint
+  /// zuerst der "gleiche Person?"-Dialog (siehe
+  /// _onPlayerCheckboxChanged/_confirmPlayerMerge), damit Decks/
+  /// Partien dieser Person wahlweise mit einer bereits bestehenden
+  /// lokalen Person zusammengeführt statt eine weitere Person
+  /// angelegt wird (mit dem Nutzer abgestimmte Ergänzung, Bugreport
+  /// "es wird eine weitere Person angelegt").
+  Widget _playerSection(ImportPreview preview) {
+    final entries = preview.players;
+    final selected = _selection.selectedPlayerIndexes;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 8, bottom: 4),
           child: Text(
-            '$title (${selected.length}/${entries.length})',
+            'Spieler (${selected.length}/${entries.length})',
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
@@ -416,24 +516,245 @@ class _ImportWizardScreenState extends ConsumerState<ImportWizardScreen> {
           CheckboxListTile(
             dense: true,
             title: Text(entry.title),
-            subtitle: entry.likelyDuplicate
-                ? Text(
-                    '${entry.subtitle != null ? '${entry.subtitle} · ' : ''}'
-                    'vermutlich bereits vorhanden',
-                  )
-                : (entry.subtitle != null ? Text(entry.subtitle!) : null),
+            subtitle: _playerSubtitle(entry),
             value: selected.contains(entry.index),
-            onChanged: (checked) {
-              final next = Set<int>.from(selected);
-              if (checked ?? false) {
-                next.add(entry.index);
-              } else {
-                next.remove(entry.index);
-              }
-              onChanged(next);
-            },
+            onChanged: (checked) =>
+                _onPlayerCheckboxChanged(preview, entry, checked ?? false),
           ),
       ],
+    );
+  }
+
+  Widget? _playerSubtitle(ImportPreviewEntry entry) {
+    final parts = <String>[
+      if (entry.subtitle != null) entry.subtitle!,
+    ];
+    if (entry.likelyDuplicate) {
+      final merged = _selection.mergePlayerIndexes.contains(entry.index);
+      final existingLabel = entry.matchedExistingLabel ?? entry.title;
+      parts.add(
+        merged
+            ? 'wird mit "$existingLabel" zusammengeführt'
+            : 'vermutlich bereits vorhanden ("$existingLabel")',
+      );
+    }
+    return parts.isEmpty ? null : Text(parts.join(' · '));
+  }
+
+  /// Reagiert auf das (Ab-)Wählen eines Spieler-Eintrags. Wird ein
+  /// bisher abgewählter Duplikat-Eintrag angehakt, wird zuerst per
+  /// Dialog nachgefragt, ob es sich um dieselbe Person handelt (siehe
+  /// _confirmPlayerMerge) - erst danach wird die Auswahl tatsächlich
+  /// geändert. Ein Abbruch des Dialogs (Tippen daneben/"Abbrechen")
+  /// lässt die Auswahl unverändert. Das Abwählen eines bereits
+  /// zusammengeführten Eintrags hebt die Merge-Markierung wieder auf.
+  Future<void> _onPlayerCheckboxChanged(
+    ImportPreview preview,
+    ImportPreviewEntry entry,
+    bool checked,
+  ) async {
+    final alreadySelected =
+        _selection.selectedPlayerIndexes.contains(entry.index);
+    if (checked && !alreadySelected && entry.likelyDuplicate) {
+      final merge = await _confirmPlayerMerge(entry);
+      if (merge == null) return;
+      setState(() {
+        final players = Set<int>.from(_selection.selectedPlayerIndexes)
+          ..add(entry.index);
+        final merges = Set<int>.from(_selection.mergePlayerIndexes);
+        if (merge) {
+          merges.add(entry.index);
+        } else {
+          merges.remove(entry.index);
+        }
+        final updated = _selection.copyWith(
+          selectedPlayerIndexes: players,
+          mergePlayerIndexes: merges,
+        );
+        _selection = _reconcileSelection(preview, updated);
+      });
+      return;
+    }
+    setState(() {
+      final players = Set<int>.from(_selection.selectedPlayerIndexes);
+      final merges = Set<int>.from(_selection.mergePlayerIndexes);
+      if (checked) {
+        players.add(entry.index);
+      } else {
+        players.remove(entry.index);
+        merges.remove(entry.index);
+      }
+      final updated = _selection.copyWith(
+        selectedPlayerIndexes: players,
+        mergePlayerIndexes: merges,
+      );
+      _selection = _reconcileSelection(preview, updated);
+    });
+  }
+
+  /// true = zusammenführen (Merge), false = neue Person anlegen (wie
+  /// bisheriges Verhalten), null = Dialog abgebrochen (siehe
+  /// _onPlayerCheckboxChanged).
+  Future<bool?> _confirmPlayerMerge(ImportPreviewEntry entry) {
+    final existingLabel = entry.matchedExistingLabel ?? entry.title;
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Gleiche Person?'),
+        content: Text(
+          'Es existiert bereits eine Person namens "$existingLabel". '
+          'Handelt es sich um dieselbe Person? Dann werden Decks und '
+          'Partien beim Import mit dieser bestehenden Person '
+          'zusammengeführt, statt eine weitere Person anzulegen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Nein, neue Person'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Ja, zusammenführen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Zeigt die Gruppen-Auswahl - Verhalten jetzt bewusst identisch zu
+  /// [_playerSection] (Nutzer-Feedback: die vorherige separate
+  /// Sync-Icon-Variante hat "nicht geklappt"): wird ein als Duplikat
+  /// erkannter Eintrag angehakt, erscheint zuerst der "gleiche
+  /// Gruppe?"-Dialog (siehe _onGroupCheckboxChanged/
+  /// _confirmGroupMerge), damit Mitglieder wahlweise mit einer bereits
+  /// bestehenden lokalen Gruppe zusammengeführt statt eine weitere
+  /// Gruppe angelegt wird.
+  Widget _groupSection(ImportPreview preview) {
+    final entries = preview.groups;
+    final selected = _selection.selectedGroupIndexes;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          child: Text(
+            'Gruppen (${selected.length}/${entries.length})',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        for (final entry in entries)
+          CheckboxListTile(
+            dense: true,
+            title: Text(entry.title),
+            subtitle: _groupSubtitle(entry),
+            value: selected.contains(entry.index),
+            onChanged: (checked) =>
+                _onGroupCheckboxChanged(preview, entry, checked ?? false),
+          ),
+      ],
+    );
+  }
+
+  Widget? _groupSubtitle(ImportPreviewEntry entry) {
+    final parts = <String>[
+      if (entry.subtitle != null) entry.subtitle!,
+    ];
+    if (entry.likelyDuplicate) {
+      final merged = _selection.mergeGroupIndexes.contains(entry.index);
+      final existingLabel = entry.matchedExistingLabel ?? entry.title;
+      parts.add(
+        merged
+            ? 'wird mit "$existingLabel" zusammengeführt'
+            : 'vermutlich bereits vorhanden ("$existingLabel")',
+      );
+    }
+    return parts.isEmpty ? null : Text(parts.join(' · '));
+  }
+
+  /// Wie [_onPlayerCheckboxChanged], nur für Gruppen: Wird ein bisher
+  /// abgewähltes Duplikat angehakt, wird zuerst per Dialog nachgefragt,
+  /// ob es sich um dieselbe Gruppe handelt (siehe _confirmGroupMerge) -
+  /// erst danach wird die Auswahl tatsächlich geändert. Ein Abbruch
+  /// des Dialogs lässt die Auswahl unverändert. Das Abwählen einer
+  /// bereits zusammengeführten Gruppe hebt die Merge-Markierung wieder
+  /// auf.
+  Future<void> _onGroupCheckboxChanged(
+    ImportPreview preview,
+    ImportPreviewEntry entry,
+    bool checked,
+  ) async {
+    final alreadySelected =
+        _selection.selectedGroupIndexes.contains(entry.index);
+    if (checked && !alreadySelected && entry.likelyDuplicate) {
+      final merge = await _confirmGroupMerge(entry);
+      if (merge == null) return;
+      setState(() {
+        final groups = Set<int>.from(_selection.selectedGroupIndexes)
+          ..add(entry.index);
+        final merges = Set<int>.from(_selection.mergeGroupIndexes);
+        if (merge) {
+          merges.add(entry.index);
+        } else {
+          merges.remove(entry.index);
+        }
+        _selection = _selection.copyWith(
+          selectedGroupIndexes: groups,
+          mergeGroupIndexes: merges,
+        );
+      });
+      return;
+    }
+    setState(() {
+      final groups = Set<int>.from(_selection.selectedGroupIndexes);
+      final merges = Set<int>.from(_selection.mergeGroupIndexes);
+      if (checked) {
+        groups.add(entry.index);
+      } else {
+        groups.remove(entry.index);
+        merges.remove(entry.index);
+      }
+      _selection = _selection.copyWith(
+        selectedGroupIndexes: groups,
+        mergeGroupIndexes: merges,
+      );
+    });
+  }
+
+  /// true = zusammenführen (Merge, fehlende Mitglieder werden in die
+  /// bestehende Gruppe übernommen), false = neue Gruppe anlegen (wie
+  /// bisheriges Verhalten), null = Dialog abgebrochen (siehe
+  /// _onGroupCheckboxChanged).
+  Future<bool?> _confirmGroupMerge(ImportPreviewEntry entry) {
+    final existingLabel = entry.matchedExistingLabel ?? entry.title;
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Gleiche Gruppe?'),
+        content: Text(
+          'Es existiert bereits eine Gruppe namens "$existingLabel". '
+          'Handelt es sich um dieselbe Gruppe? Dann werden fehlende '
+          'Mitglieder aus dem Import in diese bestehende Gruppe '
+          'übernommen, statt eine weitere Gruppe anzulegen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Nein, neue Gruppe'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Ja, zusammenführen'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -459,6 +780,24 @@ class _ImportWizardScreenState extends ConsumerState<ImportWizardScreen> {
           '${result.gamesImported} Partien.',
           style: Theme.of(context).textTheme.titleMedium,
         ),
+        if (result.playersMerged > 0 ||
+            result.decksMerged > 0 ||
+            result.groupsMerged > 0) ...[
+          const SizedBox(height: 4),
+          Text(
+            [
+              if (result.playersMerged > 0)
+                '${result.playersMerged} Spieler mit bestehenden Personen '
+                    'zusammengeführt',
+              if (result.decksMerged > 0)
+                '${result.decksMerged} Decks aktualisiert',
+              if (result.groupsMerged > 0)
+                '${result.groupsMerged} Gruppen mit bestehenden Gruppen '
+                    'zusammengeführt',
+            ].join(' · '),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
         if (result.warnings.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text('Hinweise', style: Theme.of(context).textTheme.titleSmall),

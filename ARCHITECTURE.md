@@ -142,18 +142,25 @@ Implementierung. Zwei Prüf-Einstiegspunkte:
 
 Regeln je Modus (`gameModeRules`):
 - **Commander/cEDH**: 2-6 Teilnehmer, keine Teams. Platzierung
-  individuell: bei Unentschieden identischer Platz für alle, sonst
-  eindeutig durchnummeriert 1..N.
+  individuell, eindeutig durchnummeriert 1..N.
 - **Erzfeind**: 3-6 Teilnehmer, genau einer mit `team == 'archenemy'`,
   die übrigen 2-5 bilden das Team dagegen. Platzierung: alle
   Team-Mitglieder teilen sich einen Platz, der Erzfeind einen anderen
-  (nur Platz 1/2), außer bei Unentschieden (alle gleich).
+  (nur Platz 1/2).
 - **Two-Headed Giant**: mindestens 4 Teilnehmer, exakt zwei gleich
   große Teams (**Annahme, noch nicht explizit vom Nutzer bestätigt:**
   mindestens 2 Spieler pro Team - bewusst flexibler als
   mtg_stats_tracker, das dort starr auf 2v2/4 Spieler beschränkt war).
-  Platzierung: beide Teams teilen sich je einen Platz (1/2), außer bei
-  Unentschieden.
+  Platzierung: beide Teams teilen sich je einen Platz (1/2).
+
+Bei einem Unentschieden (`isDraw`) entfällt die Platzierungs-Prüfung
+komplett, modusunabhängig - `validateGameResult` gibt dann direkt
+`null` zurück (kein Platzierungs-Zwang, siehe "Bekannte Fixes" unten).
+Fachlich gelten trotzdem alle Teilnehmer als Sieger: `placement` wird
+UI-seitig automatisch auf 1 gesetzt (`GameSetupScreen._setDraw`/
+`_withDefaults`/`_saveManual`, `LiveGameScreen._ResultDialog._setDraw`),
+da `GameParticipantDraft.isWinner` weiterhin aus `placement == 1`
+abgeleitet wird.
 
 UI-seitig (siehe `GameSetupScreen`/`LiveGameScreen`):
 - Startposition und Team-/Erzfeind-Zuordnung werden bereits auf dem
@@ -252,6 +259,21 @@ Referenzierung statt lokaler IDs, Duplikat-Erkennung).
   Checkboxen je Eintrag (vorausgewählt/-abgewählt siehe
   Duplikat-Erkennung) -> Import -> Ergebnis inkl. Hinweise zu nicht
    1:1 übernommenen Einträgen.
+- **Deck-Abgleich bei Duplikaten** (Nutzerwunsch, siehe "Bekannte
+  Fixes" für die Details): wird beim Import ein Deck als vermutlich
+  bereits vorhanden erkannt (Besitzer+Name, case-insensitive - wie
+  bisher), werden zusätzlich ALLE inhaltlichen Felder mit dem
+  bestehenden lokalen Deck verglichen (Commander, zweiter Commander,
+  Farbidentität, Bauart, Bracket, Proxy, turnierlegal, Link). Bei
+  Abweichung fragt ein "Deck aktualisieren?"-Dialog, ob die Werte aus
+  dem Import übernommen werden sollen (`ImportSelection.
+  mergeDeckIndexes`) - dann wird das BESTEHENDE Deck aktualisiert
+  statt ein zweites, separates Deck anzulegen. Funktioniert
+  gleichermaßen über Datei- und QR-Import, da beide Wege dasselbe
+  `ExportBundle`/dieselbe `ImportService`-Logik nutzen (ein
+  "überarbeitetes Deck" kann also z. B. auch einzeln per QR-Code
+  geteilt und automatisch als Update des bereits vorhandenen Decks
+  erkannt werden).
 
 ## Aktueller Stand / nächste Schritte
 
@@ -417,6 +439,73 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
    das explizit anstößt.
 
 ## Bekannte Fixes
+
+- **Fix: "Farblos" fehlte als Auswahl bei der Farbidentität**
+  (Nutzer-Bugreport: beim Deck-Anlegen stand die neutrale/farblose
+  Option gar nicht zur Verfügung). Technisch war Farblosigkeit im
+  Datenmodell schon immer abbildbar (leerer `colorIdentity`-String =
+  farblos, siehe core/utils/color_identity_utils.dart) - erreichbar
+  war das bisher aber nur implizit, indem man in `ColorIdentityPicker`
+  (core/utils bzw. features/decks/view/widgets/
+  color_identity_picker.dart) EINFACH KEINE der 5 WUBRG-Farben
+  auswählt. Es gab dafür keinen eigenen, sichtbaren Chip. Fix: neuer
+  "Farblos"-Chip vor den 5 Farb-Chips, mit dem Colorless-Mana-Symbol
+  als Avatar (nutzt denselben Fallback wie `ManaSymbol` für eine
+  unbekannte Farbe, siehe core/widgets/mana_symbol.dart - kein neues
+  Icon nötig). Ausgewählt, wenn aktuell keine Farbe gesetzt ist;
+  Antippen setzt die Farbidentität explizit auf "". Bewusst kein
+  Abwählen des Chips selbst möglich (No-Op) - "farblos" verlässt man,
+  indem man stattdessen eine echte Farbe auswählt, nicht durch
+  Deselektieren.
+  `ColorIdentityPicker` ist eine gemeinsam genutzte Komponente (siehe
+  deck_form_dialog.dart UND add_anonymous_participant_dialog.dart für
+  die Farbidentität anonymer Teilnehmer) - der Fix gilt daher an
+  beiden Stellen automatisch mit, ohne dass dort etwas geändert werden
+  musste.
+
+- **Decks nach Performance sortierbar** (Nutzerfrage "wo wäre dafür
+  ein geeigneter Ort?", per zwei AskUserQuestion-Rückfragen geklärt:
+  (1) mehrere Kriterien wählbar statt nur einem, (2) im bestehenden
+  Decks-Tab statt einer neuen eigenen Übersicht). Vorab recherchiert:
+  einen eigenen "Alle Decks"-Screen gibt es nicht - der "Decks"-Tab in
+  der unteren Navigation ist technisch `PlayerDetailScreen` für den
+  Ich-Spieler (dieselbe Deck-Liste wird auch für Gruppenmitglieder
+  verwendet, siehe group_detail_screen.dart). Neues Sortier-Symbol
+  (`Icons.sort`, `PopupMenuButton<_DeckSort>`) in der AppBar neben
+  Suche/Archiviert-Umschalter, mit vier Kriterien (`_DeckSort`-Enum):
+  Name (A-Z, bisheriges Verhalten), Winrate, Siege, Anzahl Partien.
+  Performance-Daten kommen NICHT aus einer neuen Abfrage, sondern aus
+  der bereits für das Statistik-Dashboard bestehenden Aggregation:
+  `GamesRepository.watchSelfGameStats(playerId)` (trotz des Namens
+  "self" bereits generisch nach einer beliebigen `playerId`
+  parametrisiert - dort schon vorher genauso genutzt, nur bisher immer
+  mit dem Ich-Spieler aufgerufen) + `computePlayerStats(rows).byDeck`
+  (liefert `DeckWinStats` mit `wins`/`gamesPlayed`/`winRate`, siehe
+  player_stats.dart) - hier neu über `selfGameStatsProvider(playerId)`
+  mit der ID des jeweils angezeigten Spielers verknüpft, zu einer
+  `Map<int, DeckWinStats>` nach `deckId` aufbereitet. "Performance"
+  bedeutet dabei bewusst: Partien, in denen der BESITZER dieses
+  Screens das Deck SELBST gespielt hat - nicht Partien, in denen es an
+  jemand anderen verliehen war (siehe DeckWinStats.isOwnDeck/
+  Deck-Verleih weiter oben in diesem Dokument).
+  Sortierung bei den drei Performance-Kriterien absteigend (bestes
+  Deck zuerst), mit Deck-Namen als Tiebreaker bei Gleichstand -
+  wichtig v. a. für nie gespielte Decks (kein Eintrag in der Map,
+  gelten als 0), die dadurch automatisch ans Ende rutschen, statt in
+  zufälliger Reihenfolge verstreut zu sein. Bei Winrate zusätzlich
+  Sonderfall "noch nie gespielt" (winRate == null wegen Division durch
+  0) explizit ans Ende sortiert, unabhängig von Siegen/Partien anderer
+  Decks. Ist eine Performance-Sortierung aktiv, wird der jeweiligen
+  Deck-Karte zusätzlich eine kurze Kennzahl vorangestellt (z. B.
+  "67% Siege (2/3)", "3 Siege" oder "Noch keine Partien") - macht die
+  Sortierung nachvollziehbar, verschwindet aber wieder bei Sortierung
+  nach Name (bisheriges Aussehen bleibt dort unverändert).
+  Die Statistik-Abfrage wird bewusst NICHT hinter denselben
+  Ladezustand wie die Deck-Liste gehängt (`AsyncValue.maybeWhen` mit
+  leerer Map als Fallback) - die Deck-Liste erscheint so weiterhin
+  sofort, auch falls die (an sich sehr schnelle, rein lokale)
+  Statistik-Abfrage minimal später fertig wird, statt einen zweiten
+  Ladespinner davorzuschalten.
 
 - **Mana-Symbole + Bracket in den Deck-Auswahllisten** (Nutzerwunsch,
   "Kosmetik" bei der Mitspieler-Auswahl: statt des rohen WUBRG-
@@ -2283,6 +2372,331 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
   Home-Screen). Keine Datenbank-/Repository-Änderungen nötig - nutzt
   denselben `GamesRepository.watchSelfGameStats`-Stream wie das
   Statistik-Dashboard, hier aber ungefiltert nach Gruppe/Modus.
+
+- **Import: Zusammenführen statt Duplizieren bei Spielern UND
+  Gruppen** (Nutzer-Bugreport: wird beim Import ein bereits
+  vorhandener Spieler-/Gruppenname trotzdem importiert, legt
+  `ImportService.performImport` bisher unbedingt einen ZWEITEN
+  Datensatz an und hängt Decks/Partien/Mitglieder daran auf, statt den
+  bereits bestehenden lokalen Eintrag zu erkennen - obwohl
+  `buildPreview` einen solchen Namens-Treffer längst als
+  `likelyDuplicate` markiert hatte. Betraf typischerweise genau den
+  eigenen Namen/die eigene Gruppe aus der Erstinstallation eines
+  zweiten Geräts. Spieler und Gruppen verhalten sich dabei bewusst
+  IDENTISCH (ursprünglich hatten Gruppen eine abweichende, auf
+  abgewählte Einträge zugeschnittene Sync-Icon-Variante - laut
+  Nutzer-Feedback ("hat nicht geklappt") durch die jetzige,
+  einheitliche Variante ersetzt):
+  - Wird ein als `likelyDuplicate` markierter Spieler ODER eine
+    ebenso markierte Gruppe in der Vorschau (`ImportWizardScreen`)
+    manuell angehakt, erscheint zuerst ein Bestätigungsdialog
+    ("Gleiche Person?"/"Gleiche Gruppe?", Optionen "Ja,
+    zusammenführen" / "Nein, neue Person"/"Nein, neue Gruppe" /
+    Abbrechen). Bei Bestätigung landet der Bundle-Index in
+    `ImportSelection.mergePlayerIndexes` bzw. `mergeGroupIndexes` -
+    beide NUR für Indexe relevant, die auch tatsächlich ausgewählt
+    sind (angehakt), also spiegelbildlich zueinander aufgebaut.
+  - `performImport` überspringt für diese Indexe dann bewusst den
+    `Players`- bzw. `Groups`-Insert UND die Überschreibung von
+    `playerIdByName`/`groupIdByName` - beide Maps sind zu Beginn
+    ohnehin schon mit dem GESAMTEN vorhandenen Datenbestand vorbelegt
+    (siehe Klassendoku in `import_service.dart`) und zeigen für diesen
+    Namen daher schon korrekt auf den bestehenden Datensatz. Bei
+    Spielern werden dadurch Decks/Partien automatisch der bestehenden
+    Person zugeordnet; bei Gruppen werden alle im Bundle gelisteten
+    `memberNames`, die sich lokal auflösen lassen, per
+    `InsertMode.insertOrIgnore` als fehlende Mitgliedschaft in die
+    bestehende Gruppe übernommen, ohne die Gruppe selbst neu
+    anzulegen.
+  - Wählt der Nutzer stattdessen "Nein, neue Person"/"Nein, neue
+    Gruppe", verhält sich der Import wie bisher (neuer Datensatz,
+    keine Merge-Markierung). Ein Abbruch des Dialogs lässt die Auswahl
+    unverändert (Checkbox bleibt abgewählt). Das nachträgliche
+    Abwählen eines bereits zusammengeführten Eintrags hebt die
+    Merge-Markierung automatisch mit auf.
+  - Neues Feld `ImportPreviewEntry.matchedExistingLabel`: der exakte
+    Anzeigename des gefundenen bestehenden lokalen Eintrags (Namens-
+    Abgleich ist case-insensitive, kann sich in der Schreibweise vom
+    importierten Namen unterscheiden) - wird in beiden Dialogen sowie
+    als Untertitel-Hinweis angezeigt. Neue Felder
+    `ImportResult.playersMerged`/`groupsMerged` für die Erfolgsmeldung
+    im letzten Wizard-Schritt. Rein modell-/UI-seitige Ergänzung ohne
+    neue Datenbank-Spalte - keine Migration nötig.
+  - Bewusste Vereinfachung gegenüber der ursprünglichen Anforderung:
+    eine Gruppen-Mitgliedschaft wird jetzt nur noch dann abgeglichen,
+    wenn die Gruppe auch tatsächlich angehakt UND im Dialog als
+    "gleiche Gruppe" bestätigt wird (genau wie bei Spielern) - eine
+    komplett abgewählte Duplikat-Gruppe wird NICHT mehr abgeglichen.
+    Gruppen ohne eigene Mitgliedschaft (Self-Player nicht Mitglied)
+    sind wie zuvor bereits in `ImportService.buildPreview` komplett
+    aus der Vorschau gefiltert und daher ohnehin nie erreichbar (siehe
+    Export/Import-Abschnitt oben).
+
+- **Statistik-Dashboard: "Wenn andere meine Decks spielen"** (Nutzer-
+  frage: "Gewinne ich gegen meine eigenen Decks oder verliere ich
+  eher?", per AskUserQuestion auf das Stats-Dashboard eingegrenzt statt
+  einer zusätzlichen Anzeige in der Decks-Übersicht oder an beiden
+  Stellen). Neuer Abschnitt in `StatsScreen`/`_StatsBody`
+  (`lib/features/stats/view/screen/stats_screen.dart`), direkt nach
+  "Nach Deck" und vor "Nach Farbidentität": die GEGENRICHTUNG von
+  "Nach Deck" - dort geht es um die Siegquote, wenn der Ich-Spieler
+  SELBST ein Deck spielt, hier um seine Siegquote in Partien, in denen
+  ein GEGNER eines seiner eigenen Decks gespielt hat (Deck-Verleih).
+  Zeigt eine Gesamt-Bilanz-Card (Partien/Siege/Siegquote) sowie darunter
+  eine Card je verliehenem Deck.
+  - `GamesRepository.watchSelfGameStats` sammelte Deck-Verleih bisher
+    nur als kollabierten Bool (`SelfGameStatsRow.opponentPlayedOwnDeck`,
+    Grundlage des "shame"-Achievements) - die zugrundeliegenden
+    Teilnehmer-Zeilen (inkl. `Decks.ownerPlayerId`) waren im Join zwar
+    schon vorhanden, wurden aber verworfen. Neues Feld
+    `SelfGameStatsRow.lentDecks` (`List<LentDeckInfo>`, neue kleine
+    Klasse mit `deckId`/`deckName`/`colorIdentity`) behält stattdessen
+    die IDENTITÄT jedes in dieser Partie von einem Gegner gespielten
+    eigenen Decks - `opponentPlayedOwnDeck` bleibt unverändert
+    bestehen (weiterhin Grundlage des "shame"-Badges), `lentDecks` ist
+    eine rein additive Ergänzung.
+  - Neue reine Funktion `computeLendingStats` (neue Datei
+    `lib/features/stats/model/lending_stats.dart`, `LendingStats`/
+    `LentDeckStats`) - analog zu `computePlayerStats`
+    (player_stats.dart): zählt jede Partie mit mindestens einem
+    verliehenen eigenen Deck einmal für die Gesamt-Bilanz und je
+    betroffenem Deck einmal für die Pro-Deck-Bilanz (eine Partie mit
+    zwei gleichzeitig an unterschiedliche Gegner verliehenen eigenen
+    Decks fließt entsprechend in beide Deck-Bilanzen ein). "Sieg"
+    folgt derselben Definition wie überall sonst (`isWinner`, bei
+    Unentschieden für alle Teilnehmer true).
+  - Rein modell-/UI-seitige Ergänzung ohne neue Datenbank-Spalte -
+    keine Migration nötig.
+
+- **Fix: QR-Codes zum Teilen wirkten zu dunkel** (Nutzer-Bugreport).
+  `QrShareDialog` (`lib/features/export/view/widgets/
+  qr_share_dialog.dart`, zeigt Deck-/Spieler-/Partie-Bundles als
+  QR-Code, siehe Export/Import-Abschnitt oben) übergab `QrImageView`
+  bisher keinen `backgroundColor` - Standard dort ist transparent, im
+  Dark Mode schimmerte dadurch die dunkle Dialog-Oberfläche durch den
+  gesamten Code hindurch, wodurch er fast vollständig dunkel wirkte
+  UND schlechter scanbar war (zu geringer Kontrast zwischen den
+  weiterhin schwarzen Modulen und dem Untergrund). Fix: der QR-Code
+  sitzt jetzt in einem eigenen `Container` mit explizit WEISSEM
+  Hintergrund (abgerundete Ecken, etwas Padding als Ruhezone/Quiet
+  Zone) - unabhängig vom Theme. Die Module selbst bleiben bewusst
+  schwarz (nicht aufgehellt), damit die Scanbarkeit nicht leidet -
+  reine Kontrast-/Umgebungskorrektur, keine Änderung an den QR-Daten
+  selbst.
+
+- **Fix: Label für anonyme Teilnehmer zu lang** (Nutzerwunsch).
+  `AddAnonymousParticipantDialog`
+  (`lib/features/games/view/widgets/add_anonymous_participant_dialog.
+  dart`) - das `TextField` für die Bezeichnung eines Spielers ohne
+  eigenen Spieler-/Deck-Datensatz hatte das Label "Bezeichnung
+  (optional, z. B. Gast von Chris)", was auf kleinen Bildschirmen zu
+  lang war/umbrach. Gekürzt zu "Name (optional)" - die Erklärung
+  ("z. B. Gast von Chris") bleibt weiterhin als Kommentar im Code und
+  im Klassendoc erhalten, ist aber nicht mehr Teil des sichtbaren
+  Labels.
+
+- **Fix: "Farblos" als irreführender Platzhalter, solange noch kein
+  Deck gewählt wurde** (Nutzerwunsch, aufgefallen beim Erfassen einer
+  Partie: "Ich" wird als erster Teilnehmer gesetzt, bevor ein Deck
+  ausgewählt ist). `_ParticipantCard` in `game_setup_screen.dart`
+  zeigte für einen bekannten Spieler ohne gewähltes Deck bisher
+  `draft.colorIdentity.isEmpty ? 'Farblos' : draft.colorIdentity` an -
+  da `colorIdentity` in einem frischen `GameParticipantDraft`
+  standardmäßig ein leerer String ist (nicht "noch nicht gewählt"),
+  sah das wie eine bereits getroffene Deck-Wahl aus. Fix: dieser Zweig
+  unterscheidet jetzt anhand von `onChangeDeck != null` (laut
+  Klassendoku nur für BEKANNTE Spieler gesetzt, siehe
+  GameParticipantDraft.isAnonymous) zwischen "kein Deck gewählt" (neuer
+  Text: "Noch kein Deck ausgewählt") und einem anonymen Teilnehmer
+  (`onChangeDeck == null`), bei dem "Farblos" weiterhin korrekt ist,
+  da dort die Farbidentität bewusst über den ColorIdentityPicker
+  gewählt wird (siehe "Farblos"-Chip-Fix weiter oben) statt implizit
+  leer zu sein. Ein ECHT farbloses gewähltes Deck zeigt unverändert
+  seinen Namen (`draft.deckName`), ist von diesem Fix also nicht
+  betroffen. Geprüft, dass `deck.colorIdentity.isEmpty ? 'Farblos' : …`
+  an der einzigen anderen Fundstelle (`player_detail_screen.dart`,
+  Deck-Liste) zu einem ECHTEN, bereits gespeicherten `Deck`-Objekt
+  gehört und daher korrekt bleibt - dort war kein Fix nötig.
+
+- **Fix: Unentschieden bei manueller Erfassung verlangte trotzdem
+  Platzierungen** (Nutzer-Bugreport: "wenn ich dort für die Partie
+  'Unentschieden' wählen möchte, muss ich im Vorfeld Platzierungen
+  vergeben"). Ursache war zweigeteilt:
+  1. `validateGameResult` (game_setup_validator.dart) prüfte
+     `participants.any((p) => p.placement == null)` UNBEDINGT, also
+     auch dann, wenn `isDraw` gesetzt war - obwohl bei einem
+     Unentschieden laut App-Konvention ohnehin alle Teilnehmer als
+     Sieger gelten (`GameParticipantDraft.isWinner`, aus
+     `placement == 1` abgeleitet) und eine individuelle Platzierung
+     dafür gar nicht gebraucht wird.
+  2. Selbst wenn man die Platzierungen vorher manuell vergeben hätte:
+     `GameSetupScreen._setDraw` setzt beim Aktivieren von
+     "Unentschieden" `placement: 1` nur für die zu diesem Zeitpunkt
+     BEREITS vorhandenen Teilnehmer. `_withDefaults` (aufgerufen beim
+     Hinzufügen eines neuen Teilnehmers) setzte bisher gar keine
+     Platzierung und berücksichtigte `_isDraw` nicht - ein Teilnehmer,
+     der NACH dem Aktivieren von "Unentschieden" hinzugefügt wurde,
+     blieb also ohne Platzierung. Das war nicht mal per UI behebbar,
+     da der Platz-Stepper bei aktivem Unentschieden ausgeblendet ist
+     (`showPlacement && !isDraw`).
+  Fix, dreiteilig: (a) `validateGameResult` gibt bei `isDraw == true`
+  jetzt sofort `null` zurück (kein Platzierungs-Check mehr, direkt
+  nach `validateGameSetup`) - `der Check sollte da entfallen` laut
+  Nutzerwunsch. (b) `_withDefaults` setzt für neu hinzugefügte
+  Teilnehmer jetzt `placement: _isDraw ? 1 : null`, damit auch später
+  hinzugefügte Teilnehmer sofort korrekt als Unentschieden-Sieger
+  markiert sind. (c) `_saveManual` normalisiert zusätzlich als
+  Sicherheitsnetz vor dem Speichern: bei `_isDraw == true` wird für
+  ALLE Teilnehmer `placement: 1` erzwungen, unabhängig davon, wie/wann
+  sie hinzugefügt wurden. `validateGameResult` wird sowohl vom
+  manuellen Erfassen (`game_setup_screen.dart`) als auch vom Beenden
+  einer Live-Partie (`live_game_screen.dart`, `_ResultDialog`)
+  verwendet; dort trat der Bug aber nicht auf, da `_ResultDialog`
+  über eine beim Öffnen bereits feststehende, unveränderliche
+  Teilnehmerliste verfügt (keine nachträglich hinzugefügten
+  Teilnehmer möglich) - die Validator-Lockerung wirkt sich dort also
+  nur zusätzlich absichernd aus, ohne dass ein eigener Fix nötig war.
+
+- **Fix: Bildschirm ging während einer Live-Partie nach wenigen
+  Sekunden aus** (Nutzer-Bugreport). Bisher wurde für `LiveGameScreen`
+  zwar per `SystemChrome.setPreferredOrientations` Querformat
+  erzwungen (siehe Klassendoku), aber die normale
+  Bildschirm-Abschaltung des Geräts nach Inaktivität war davon nicht
+  betroffen - unpraktisch, da eine Live-Partie "auf den Tisch gelegt"
+  gespielt wird und oft minutenlang keine Bildschirm-Interaktion
+  stattfindet (nur Lebenspunkte-Änderungen). Fix: neues Paket
+  `wakelock_plus` (`^1.4.0` - bewusst nicht die neueste Version, da
+  neuere Releases ein höheres Dart-SDK als das hier verwendete `^3.9.2`
+  voraussetzen); `WakelockPlus.enable()` in `initState` (direkt nach
+  dem Setzen der Quer-Orientierung), `WakelockPlus.disable()` in
+  `dispose` (vor `super.dispose()`) - exakt demselben
+  initState/dispose-Muster folgend wie die bereits bestehende
+  Orientierungs-Sperre. Gilt nur für `LiveGameScreen` selbst; beim
+  Verlassen des Screens (auch beim "Partie beenden"-Dialog, der ja
+  Teil desselben Screens ist) wird der Wakelock wieder freigegeben.
+
+- **Neue Spezial-Badges: "Feierabend-Worrior" und "Week-Worrior"**
+  (Nutzerwunsch, Grafiken vom Nutzer bereits unter
+  `assets/badges/special/Feierabend-Worrior.png` bzw.
+  `assets/badges/special/Week-Worrior.png` bereitgestellt - Schreibweise
+  "Worrior" bewusst unverändert von den Dateinamen/der Nutzervorgabe
+  übernommen). Beide analog zum bereits bestehenden "weekend"-Badge
+  ("Wochenend-Krieger": drei aufeinanderfolgende Kalendertage
+  Freitag-Samstag-Sonntag mit je mindestens einer Partie) als
+  zusammenhängende Kalendertage-Fenster über eine feste Wochentags-Folge
+  umgesetzt:
+  - **Feierabend-Worrior**: fünf chronologisch lückenlos
+    aufeinanderfolgende Kalendertage Montag bis Freitag (eine komplette
+    Arbeitswoche) mit je mindestens einer erfassten Partie.
+  - **Week-Worrior**: sieben chronologisch lückenlos aufeinanderfolgende
+    Kalendertage Montag bis einschließlich Sonntag (eine komplette
+    Kalenderwoche) mit je mindestens einer erfassten Partie.
+  Die bisher im "weekend"-Block lokal berechnete Menge eindeutiger
+  gespielter Kalendertage (`uniqueDates`) wird jetzt einmal für alle
+  drei Prüfungen berechnet und wiederverwendet. Neue, allgemeine
+  Hilfsfunktion `_findConsecutiveWeekdayRun(dates, {length,
+  startWeekday})` in `achievement_engine.dart` (verallgemeinert das
+  Fenster-Prinzip des "weekend"-Badges auf beliebige Fensterlängen/
+  Startwochentage) - liefert das chronologisch ERSTE passende Fenster,
+  genau wie beim "weekend"-Badge (kein mehrfaches "Wiedererarbeiten"
+  wie bei den Sieg-/Wochentags-Serien). Neue Katalog-Einträge
+  `feierabend_worrior`/`week_worrior` in `badge_definitions.dart`
+  (Kategorie `special`) sowie die beiden neuen Asset-Pfade in
+  `pubspec.yaml` unter `flutter: assets:` ergänzt (Assets sind in
+  diesem Projekt einzeln aufgeführt, kein Ordner-Wildcard).
+
+- **Deck-Abgleich bei Import-Duplikaten (Commander, Farbe, Bracket,
+  turnierlegal, Link, Proxy, Bauart)** (Nutzerwunsch: teilt eine
+  andere Person ihr überarbeitetes Deck per QR-Code/Datei erneut, soll
+  erkannt werden, dass dieses Deck lokal schon existiert, UND
+  abgeglichen werden, was sich inhaltlich geändert hat). Bisher
+  erkannte `ImportService.buildPreview` ein Deck zwar bereits als
+  "vermutlich schon vorhanden" (Besitzer+Name-Schlüssel, case-
+  insensitive), verglich aber keine weiteren Felder - ein trotzdem
+  ausgewähltes Duplikat wurde beim Import einfach als komplett
+  separater, zweiter Deck-Datensatz angelegt (kein Merge-Mechanismus
+  wie bei Spielern/Gruppen).
+  - Neue Funktion `_deckFieldDiffs(Deck existing, DeckExport
+    incoming)` in `import_service.dart`: vergleicht ALLE inhaltlichen
+    Deck-Felder - `commanderName`, `secondCommanderName`,
+    `colorIdentity`, `buildType`, `bracket`, `isProxy`,
+    `isTournamentLegal`, `deckLink` - und liefert je abweichendem Feld
+    eine lesbare Zeile ("Commander: Alela → Atraxa"). Bewusst NICHT
+    verglichen: Name/Besitzer (das ist der Abgleichs-Schlüssel selbst)
+    und `archived` (rein lokaler Anzeige-Zustand, kein Deck-Inhalt).
+  - `ImportPreviewEntry` trägt jetzt zusätzlich `deckFieldDiffs`
+    (nur bei Decks gesetzt) sowie `matchedExistingLabel` (analog zu
+    Spielern/Gruppen - der tatsächliche Name des bestehenden lokalen
+    Decks, für den Fall abweichender Schreibweise).
+  - Neues `ImportSelection.mergeDeckIndexes` (spiegelbildlich zu
+    `mergePlayerIndexes`/`mergeGroupIndexes`, aber mit anderer
+    Wirkung beim Import - siehe unten).
+  - `ImportWizardScreen._deckSection`: wird ein als Duplikat erkanntes
+    Deck mit tatsächlichen Abweichungen angehakt, erscheint zuerst ein
+    "Deck aktualisieren?"-Dialog mit der vollständigen Liste der
+    abweichenden Felder (`_confirmDeckMerge`) - "Ja, aktualisieren"
+    setzt `mergeDeckIndexes`, "Nein, separates Deck" verhält sich wie
+    bisher (zweiter Deck-Datensatz). Ein identisches Duplikat (keine
+    Abweichungen) zeigt weiterhin nur den bisherigen Hinweis ohne
+    Dialog - "bei einer Abweichung" war explizit die Nutzervorgabe.
+  - `ImportService.performImport`: für per `mergeDeckIndexes`
+    markierte Decks wird KEIN neuer Datensatz angelegt, sondern das
+    bestehende lokale Deck per `UPDATE` (Drift `DecksCompanion` mit
+    den Bundle-Werten) überschrieben - anders als beim Spieler-/
+    Gruppen-Merge (dort nur "kein Insert, id wiederverwendet") werden
+    hier also tatsächlich Feldwerte übernommen. Dafür wird VOR der
+    Deck-Schleife eine zusätzliche Zuordnung `existingDeckIdByKey`
+    (Besitzer+Name -> bestehende Deck-id, Stand vor dem Import)
+    aufgebaut. Neues `ImportResult.decksMerged` (Anzahl aktualisierter
+    Decks, analog zu `playersMerged`/`groupsMerged`) - im Ergebnis-
+    Schritt als "N Decks aktualisiert" angezeigt.
+  - Funktioniert unverändert sowohl über den Datei- als auch den
+    QR-Import (beide nutzen `ImportService.buildPreview`/
+    `performImport` identisch, siehe "Export/Import"-Abschnitt oben) -
+    ein einzeln per QR geteiltes überarbeitetes Deck (`ExportService.
+    buildDeckQrBundle`) durchläuft denselben Abgleich wie ein
+    komplettes Datei-Bundle.
+
+## Untersuchter Verdachtsfall: Umlaute beim Export (nicht reproduzierbar)
+
+Nutzer-Bugreport: "Beim Export der Daten werden Umlaute nicht korrekt
+gespeichert." Konkretisiert per Rückfrage: kryptische Zeichen (z. B.
+"MÃ¼ller" statt "Müller"), aufgefallen beim erneuten Import einer per
+"In Ordner speichern" exportierten Datei auf Android. **Beim erneuten
+Testen durch den Nutzer war der Fehler nicht mehr reproduzierbar -
+vermutlich lag beim ersten Auftreten eine ALTE, aus einem früheren
+(zwischenzeitlich vermutlich bereits ordnungsgemäß überschriebenen
+oder anderweitig fehlerhaften) Stand exportierte Datei zugrunde, kein
+aktueller Bug.** Der Verdachtsfall gilt damit als erledigt, nicht als
+offene Einschränkung.
+
+Trotzdem ausführlich untersucht und dabei bestätigt, dass der eigene
+Code korrekt ist (falls das Thema doch nochmal auftaucht, hier der
+Ausgangspunkt für eine erneute Diagnose):
+- Export (`ExportWizardScreen._saveToFolder`/`_shareAsFile`,
+  `lib/features/export/view/screen/export_wizard_screen.dart`) kodiert
+  nachweislich korrekt via `utf8.encode`.
+- Import (`ImportWizardScreen._pickFile`) dekodiert nachweislich
+  korrekt via `utf8.decode` (nicht das historisch fehlerhafte
+  `String.fromCharCodes` - dieser frühere Fix ist unverändert seit dem
+  allerersten Commit vorhanden).
+- `ExportBundle`/`PlayerExport`/`DeckExport`/... sind reine
+  `Map<String, dynamic>`-Durchreicher ohne jede manuelle Kodierung;
+  keine `inputFormatters`, kein `String.fromCharCodes`/`codeUnits`/
+  `runes`/`latin1`/`ascii` irgendwo sonst im Repo.
+- Verbliebene, nicht abschließend ausgeschlossene Arbeitshypothese für
+  ein eventuelles erneutes Auftreten: eine Einschränkung/ein Bug im
+  `file_picker`-Paket selbst (Android-SAF-Schreib-/Lesepfad von
+  `saveFile(bytes:...)`/`pickFiles(withData: true)`), da sich das nur
+  bei "In Ordner speichern" zeigte, nicht bei "Als Datei teilen"
+  (reines `dart:io`, ohne Plugin-Bytes-Transfer). Sollte der Fehler
+  doch wieder auftreten: zuerst testen, ob eine per "Als Datei teilen"
+  exportierte Datei beim Reimport ebenfalls betroffen ist (grenzt
+  Lese- vs. Schreib-Pfad ein).
+- `_saveToFolder` übergibt `saveFile` weiterhin explizit
+  `mimeType: 'application/json'` statt des Standards
+  "application/octet-stream" - risikolose, semantisch korrektere
+  Ergänzung, die bei der Untersuchung ergänzt und beibehalten wurde.
 
 ## Bekannte Einschränkung: keine Datenbank-Migration
 

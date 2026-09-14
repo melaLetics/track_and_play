@@ -47,7 +47,9 @@ class _AddAnonymousParticipantDialogState
             TextField(
               controller: _labelController,
               decoration: const InputDecoration(
-                labelText: 'Bezeichnung (optional, z. B. Gast von Chris)',
+                // Kuerzer als zuvor ('Bezeichnung (optional, z. B. Gast
+                // von Chris)') - Nutzerwunsch, das Label war zu lang.
+                labelText: 'Name (optional)',
               ),
             ),
             const SizedBox(height: 16),

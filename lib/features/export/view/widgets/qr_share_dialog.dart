@@ -38,7 +38,28 @@ Future<void> showQrShareDialog(
           : SizedBox(
               width: 260,
               height: 260,
-              child: QrImageView(data: json, size: 260),
+              // Explizit WEISSER Hintergrund statt des QrImageView-
+              // Standards "transparent" (Nutzer-Bugreport: "QR Codes
+              // sind zu dunkel") - ohne das schimmert im Dark Mode die
+              // dunkle Dialog-Oberfläche durch, wodurch der Code fast
+              // vollständig dunkel wirkt UND schlechter scanbar ist
+              // (zu geringer Kontrast zu den weiterhin schwarzen
+              // Modulen - die bleiben bewusst schwarz, nicht
+              // aufgehellt, damit die Scanbarkeit nicht leidet).
+              // Etwas Padding, damit der "Ruhezone" (Quiet Zone) um
+              // den Code herum nicht direkt am Dialogrand endet.
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: QrImageView(
+                  data: json,
+                  size: 236,
+                  backgroundColor: Colors.white,
+                ),
+              ),
             ),
       actions: [
         TextButton(

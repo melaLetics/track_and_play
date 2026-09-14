@@ -177,19 +177,31 @@ final List<BadgeDefinition> specialBadges = [
     id: 'win_five_diff_decks',
     category: BadgeCategory.special,
     assetPath: 'assets/badges/special/win_five_diff_decks.png',
-    title: 'Sieg mit 5 verschiedenen Decks',
+    title: 'Sieg mit 5 Decks',
   ),
   const BadgeDefinition(
     id: 'win_ten_diff_decks',
     category: BadgeCategory.special,
     assetPath: 'assets/badges/special/win_ten_diff_decks.png',
-    title: 'Sieg mit 10 verschiedenen Decks',
+    title: 'Sieg mit 10 Decks',
   ),
   const BadgeDefinition(
     id: 'win_twentyfive_diff_decks',
     category: BadgeCategory.special,
     assetPath: 'assets/badges/special/win_twentyfive_diff_decks.png',
-    title: 'Sieg mit 25 verschiedenen Decks',
+    title: 'Sieg mit 25 Decks',
+  ),
+  const BadgeDefinition(
+    id: 'feierabend_worrior',
+    category: BadgeCategory.special,
+    assetPath: 'assets/badges/special/Feierabend-Worrior.png',
+    title: 'Feierabend-Krieger',
+  ),
+  const BadgeDefinition(
+    id: 'week_worrior',
+    category: BadgeCategory.special,
+    assetPath: 'assets/badges/special/Week-Worrior.png',
+    title: 'Wochen-Krieger',
   ),
 ];
 

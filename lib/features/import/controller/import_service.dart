@@ -90,18 +90,24 @@ class ImportService {
     final existingPlayerNames = <String>{
       for (final p in existingPlayers) p.name.toLowerCase(),
     };
+    final existingPlayerNameByLower = <String, String>{
+      for (final p in existingPlayers) p.name.toLowerCase(): p.name,
+    };
     final existingDecks = await db.select(db.decks).get();
     final ownerNameByPlayerId = <int, String>{
       for (final p in existingPlayers) p.id: p.name,
     };
-    final existingDeckKeys = <String>{
+    final existingDeckByKey = <String, Deck>{
       for (final d in existingDecks)
         '${(ownerNameByPlayerId[d.ownerPlayerId] ?? '').toLowerCase()}||'
-            '${d.name.toLowerCase()}',
+            '${d.name.toLowerCase()}': d,
     };
     final existingGroups = await db.select(db.groups).get();
     final existingGroupNames = <String>{
       for (final g in existingGroups) g.name.toLowerCase(),
+    };
+    final existingGroupNameByLower = <String, String>{
+      for (final g in existingGroups) g.name.toLowerCase(): g.name,
     };
 
     final players = <ImportPreviewEntry>[];
@@ -110,7 +116,13 @@ class ImportService {
       final p = bundle.players[i];
       final duplicate = existingPlayerNames.contains(p.name.toLowerCase());
       players.add(
-        ImportPreviewEntry(index: i, title: p.name, likelyDuplicate: duplicate),
+        ImportPreviewEntry(
+          index: i,
+          title: p.name,
+          likelyDuplicate: duplicate,
+          matchedExistingLabel:
+              duplicate ? existingPlayerNameByLower[p.name.toLowerCase()] : null,
+        ),
       );
       if (!duplicate) selectedPlayers.add(i);
     }
@@ -120,13 +132,17 @@ class ImportService {
     for (var i = 0; i < bundle.decks.length; i++) {
       final d = bundle.decks[i];
       final key = '${d.ownerName.toLowerCase()}||${d.name.toLowerCase()}';
-      final duplicate = existingDeckKeys.contains(key);
+      final existingDeck = existingDeckByKey[key];
+      final duplicate = existingDeck != null;
       decks.add(
         ImportPreviewEntry(
           index: i,
           title: d.name,
           subtitle: d.ownerName,
           likelyDuplicate: duplicate,
+          matchedExistingLabel: duplicate ? existingDeck.name : null,
+          deckFieldDiffs:
+              duplicate ? _deckFieldDiffs(existingDeck, d) : const [],
         ),
       );
       if (!duplicate) selectedDecks.add(i);
@@ -156,6 +172,8 @@ class ImportService {
           subtitle:
               g.memberNames.isEmpty ? null : '${g.memberNames.length} Mitglieder',
           likelyDuplicate: duplicate,
+          matchedExistingLabel:
+              duplicate ? existingGroupNameByLower[g.name.toLowerCase()] : null,
         ),
       );
       if (!duplicate) selectedGroups.add(i);
@@ -221,7 +239,20 @@ class ImportService {
       };
 
       var playersImported = 0;
+      var playersMerged = 0;
       for (final i in selection.selectedPlayerIndexes) {
+        if (selection.mergePlayerIndexes.contains(i)) {
+          // Nutzer hat im "gleiche Person?"-Dialog bestätigt, dass es
+          // sich um eine bereits bestehende lokale Person handelt
+          // (siehe ImportSelection.mergePlayerIndexes) - playerIdByName
+          // ist oben bereits mit dem GESAMTEN vorhandenen Datenbestand
+          // vorbelegt und zeigt für diesen Namen daher schon auf den
+          // richtigen bestehenden Datensatz. Kein Insert, keine
+          // Überschreibung - sonst entstünde exakt der gemeldete Bug
+          // (zweite Person, Decks/Partien an der falschen Person).
+          playersMerged++;
+          continue;
+        }
         final pe = bundle.players[i];
         final id = await db.into(db.players).insert(
               PlayersCompanion.insert(
@@ -233,8 +264,23 @@ class ImportService {
         playersImported++;
       }
 
+      // Bereits bestehende Decks VOR der Import-Schleife per
+      // Besitzer+Name-Schlüssel erfasst (derselbe Schlüssel wie in
+      // buildPreview/_deckFieldDiffs) - Grundlage für den unten
+      // benötigten "bestehendes Deck aktualisieren statt neu
+      // anlegen"-Zweig (siehe ImportSelection.mergeDeckIndexes).
+      final existingPlayerNameById = <int, String>{
+        for (final p in await db.select(db.players).get()) p.id: p.name,
+      };
+      final existingDeckIdByKey = <String, int>{
+        for (final d in await db.select(db.decks).get())
+          '${(existingPlayerNameById[d.ownerPlayerId] ?? '').toLowerCase()}||'
+              '${d.name.toLowerCase()}': d.id,
+      };
+
       final deckIdByKey = <String, int>{};
       var decksImported = 0;
+      var decksMerged = 0;
       for (final i in selection.selectedDeckIndexes) {
         final de = bundle.decks[i];
         final ownerId = playerIdByName[de.ownerName.toLowerCase()];
@@ -256,6 +302,41 @@ class ImportService {
             buildType = null;
           }
         }
+        final key = '${de.ownerName.toLowerCase()}||${de.name.toLowerCase()}';
+
+        if (selection.mergeDeckIndexes.contains(i)) {
+          // Nutzer hat im "Deck aktualisieren?"-Dialog bestätigt, dass
+          // die abweichenden Werte aus dem Import übernommen werden
+          // sollen (siehe ImportSelection.mergeDeckIndexes) - kein
+          // neuer Deck-Datensatz, stattdessen werden die inhaltlichen
+          // Felder des bestehenden Decks überschrieben. archived NICHT
+          // mit überschrieben (rein lokaler Anzeige-Zustand, kein
+          // Deck-Inhalt - siehe _deckFieldDiffs).
+          final existingId = existingDeckIdByKey[key];
+          if (existingId != null) {
+            await (db.update(db.decks)..where((t) => t.id.equals(existingId)))
+                .write(
+              DecksCompanion(
+                colorIdentity: Value(de.colorIdentity),
+                commanderName: Value(de.commanderName),
+                secondCommanderName: Value(de.secondCommanderName),
+                buildType: Value(buildType),
+                bracket: Value(de.bracket),
+                isProxy: Value(de.isProxy),
+                isTournamentLegal: Value(de.isTournamentLegal),
+                deckLink: Value(de.deckLink),
+              ),
+            );
+            deckIdByKey[key] = existingId;
+            decksMerged++;
+            continue;
+          }
+          // Der erwartete bestehende Datensatz wurde nicht gefunden
+          // (z. B. zwischenzeitlich gelöscht) - dann wie ein normaler
+          // Import unten fortfahren, statt die Aktualisierung
+          // stillschweigend zu verwerfen.
+        }
+
         final id = await db.into(db.decks).insert(
               DecksCompanion.insert(
                 ownerPlayerId: ownerId,
@@ -271,8 +352,7 @@ class ImportService {
                 archived: Value(de.archived),
               ),
             );
-        deckIdByKey['${de.ownerName.toLowerCase()}||${de.name.toLowerCase()}'] =
-            id;
+        deckIdByKey[key] = id;
         decksImported++;
       }
 
@@ -281,8 +361,38 @@ class ImportService {
           g.name.toLowerCase(): g.id,
       };
       var groupsImported = 0;
+      var groupsMerged = 0;
       for (final i in selection.selectedGroupIndexes) {
         final ge = bundle.groups[i];
+        if (selection.mergeGroupIndexes.contains(i)) {
+          // Nutzer hat im "gleiche Gruppe?"-Dialog bestätigt, dass es
+          // sich um eine bereits bestehende lokale Gruppe handelt
+          // (siehe ImportSelection.mergeGroupIndexes) - spiegelbildlich
+          // zum Spieler-Merge oben: kein neuer Gruppen-Datensatz, aber
+          // fehlende Mitgliedschaften werden in die bestehende Gruppe
+          // übernommen (sonst gingen Mitgliederinformationen aus dem
+          // Bundle verloren, nur weil die Gruppe selbst schon lokal
+          // existiert). groupIdByName ist oben bereits mit dem
+          // gesamten vorhandenen Datenbestand vorbelegt und liefert
+          // für diesen (per Definition bereits vorhandenen)
+          // Gruppennamen den richtigen bestehenden Datensatz.
+          final existingGroupId = groupIdByName[ge.name.toLowerCase()];
+          if (existingGroupId != null) {
+            for (final memberName in ge.memberNames) {
+              final memberId = playerIdByName[memberName.toLowerCase()];
+              if (memberId == null) continue;
+              await db.into(db.playerGroupMemberships).insert(
+                    PlayerGroupMembershipsCompanion.insert(
+                      playerId: memberId,
+                      groupId: existingGroupId,
+                    ),
+                    mode: InsertMode.insertOrIgnore,
+                  );
+            }
+            groupsMerged++;
+          }
+          continue;
+        }
         final id = await db.into(db.groups).insert(
               GroupsCompanion.insert(name: ge.name, archived: Value(ge.archived)),
             );
@@ -492,6 +602,9 @@ class ImportService {
         decksImported: decksImported,
         groupsImported: groupsImported,
         gamesImported: gamesImported,
+        playersMerged: playersMerged,
+        decksMerged: decksMerged,
+        groupsMerged: groupsMerged,
         warnings: warnings,
       );
     });
@@ -509,4 +622,50 @@ class ImportService {
       return mode;
     }
   }
+}
+
+/// Menschlich lesbare Beschreibung der inhaltlichen Feld-Unterschiede
+/// zwischen einem bereits bestehenden lokalen Deck [existing] und
+/// einem im Bundle enthaltenen [DeckExport] [incoming] - eine Zeile
+/// pro abweichendem Feld (z. B. "Commander: Alela → Atraxa"), leere
+/// Liste bei vollständiger Übereinstimmung. Grundlage für den "Deck
+/// aktualisieren?"-Dialog im ImportWizardScreen (Nutzerwunsch: erkennt
+/// beim Teilen eines überarbeiteten Decks per QR-Code/Datei, dass es
+/// lokal schon existiert, gleicht ALLE inhaltlichen Felder ab -
+/// Commander, Farbidentität, Bracket, turnierlegal, Link, Proxy,
+/// Bauart - und fragt bei Abweichung nach, ob gemergt werden soll).
+/// Bewusst NICHT verglichen: Name/Besitzer (das ist der
+/// Abgleichs-Schlüssel selbst, siehe buildPreview/performImport) und
+/// [Deck.archived] (rein lokaler Anzeige-Zustand, kein Deck-Inhalt).
+List<String> _deckFieldDiffs(Deck existing, DeckExport incoming) {
+  String fmt(Object? value) {
+    if (value == null || value == '') return '-';
+    if (value is bool) return value ? 'Ja' : 'Nein';
+    return value.toString();
+  }
+
+  final diffs = <String>[];
+  void check(String label, Object? existingValue, Object? incomingValue) {
+    if (existingValue == incomingValue) return;
+    diffs.add('$label: ${fmt(existingValue)} → ${fmt(incomingValue)}');
+  }
+
+  check('Commander', existing.commanderName, incoming.commanderName);
+  check(
+    'Zweiter Commander',
+    existing.secondCommanderName,
+    incoming.secondCommanderName,
+  );
+  check('Farbidentität', existing.colorIdentity, incoming.colorIdentity);
+  check('Bauart', existing.buildType?.name, incoming.buildType);
+  check('Bracket', existing.bracket, incoming.bracket);
+  check('Proxy', existing.isProxy, incoming.isProxy);
+  check(
+    'Turnierlegal',
+    existing.isTournamentLegal,
+    incoming.isTournamentLegal,
+  );
+  check('Link', existing.deckLink, incoming.deckLink);
+
+  return diffs;
 }

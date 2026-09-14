@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/widgets/rename_dialog.dart';
+import '../../../../database/app_database.dart';
 import '../../controller/provider/players_repository_provider.dart';
 import '../../../decks/controller/provider/decks_repository_provider.dart';
 import '../../../decks/model/deck_build_type_labels.dart';
@@ -9,6 +10,29 @@ import '../../../decks/view/widgets/deck_form_dialog.dart';
 import '../../../decks/view/widgets/deck_stack_card.dart';
 import '../../../export/controller/provider/export_service_provider.dart';
 import '../../../export/view/widgets/qr_share_dialog.dart';
+import '../../../games/controller/provider/games_repository_provider.dart';
+import '../../../stats/model/player_stats.dart';
+
+/// Sortierkriterium für die Deck-Liste in [PlayerDetailScreen]
+/// (Nutzerwunsch: "Decks nach ihrer Performance sortieren können").
+/// [name] ist die bisherige (implizite) Standard-Sortierung, die
+/// übrigen drei nutzen dieselbe Performance-Aggregation wie das
+/// Statistik-Dashboard (siehe GamesRepository.watchSelfGameStats/
+/// computePlayerStats - trotz des Namens "self" bereits für einen
+/// BELIEBIGEN Spieler parametrisiert, hier also für den gerade
+/// angezeigten Spieler statt zwingend den Ich-Spieler). "Performance"
+/// bezieht sich dabei auf Partien, in denen der PLAYER DIESES SCREENS
+/// das jeweilige Deck selbst gespielt hat (nicht auf Partien, in denen
+/// es an jemand anderen verliehen war - siehe DeckWinStats.isOwnDeck/
+/// Deck-Verleih in ARCHITECTURE.md).
+enum _DeckSort { name, winRate, wins, gamesPlayed }
+
+const Map<_DeckSort, String> _deckSortLabels = {
+  _DeckSort.name: 'Name (A-Z)',
+  _DeckSort.winRate: 'Winrate',
+  _DeckSort.wins: 'Siege',
+  _DeckSort.gamesPlayed: 'Anzahl Partien',
+};
 
 /// Zeigt einen Spieler (sich selbst oder ein Gruppenmitglied) und seine
 /// Decks. Von hier aus werden Decks angelegt/bearbeitet/archiviert und
@@ -21,7 +45,9 @@ import '../../../export/view/widgets/qr_share_dialog.dart';
 /// [_showArchivedDecks] geladene) Deck-Liste rein lokal nach
 /// Deck-Name UND Commander-Name filtert (Nutzerwunsch) - kein neuer
 /// Provider noetig, da die Liste hier ohnehin schon vollstaendig
-/// vorliegt.
+/// vorliegt. Das Sortier-Symbol (siehe [_DeckSort], Nutzerwunsch)
+/// erlaubt zusätzlich zur alphabetischen Sortierung eine nach
+/// Performance (Winrate/Siege/Partien).
 class PlayerDetailScreen extends ConsumerStatefulWidget {
   final int playerId;
 
@@ -37,6 +63,7 @@ class _PlayerDetailScreenState extends ConsumerState<PlayerDetailScreen> {
   bool _showSearch = false;
   String _searchQuery = '';
   final _searchController = TextEditingController();
+  _DeckSort _sortBy = _DeckSort.name;
 
   @override
   void dispose() {
@@ -52,6 +79,20 @@ class _PlayerDetailScreenState extends ConsumerState<PlayerDetailScreen> {
       _showArchivedDecks
           ? allPlayerDecksProvider(playerId)
           : playerDecksProvider(playerId),
+    );
+    // Für die Performance-Sortierung/-Anzeige (siehe _DeckSort) - bewusst
+    // tolerant per maybeWhen: solange diese (schnelle, rein lokale)
+    // Statistik noch lädt oder fehlschlägt, wird einfach mit einer
+    // leeren Map weitergemacht (alle Decks gelten dann als "0 Partien"
+    // statt die komplette Deck-Liste hinter einem zweiten Ladespinner
+    // zu verstecken).
+    final statsAsync = ref.watch(selfGameStatsProvider(playerId));
+    final statsByDeckId = statsAsync.maybeWhen(
+      data: (rows) => {
+        for (final d in computePlayerStats(rows).byDeck)
+          if (d.deckId != null) d.deckId!: d,
+      },
+      orElse: () => const <int, DeckWinStats>{},
     );
 
     return Scaffold(
@@ -84,6 +125,25 @@ class _PlayerDetailScreenState extends ConsumerState<PlayerDetailScreen> {
                 : 'Archivierte Decks anzeigen',
             onPressed: () =>
                 setState(() => _showArchivedDecks = !_showArchivedDecks),
+          ),
+          PopupMenuButton<_DeckSort>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Decks sortieren',
+            onSelected: (value) => setState(() => _sortBy = value),
+            itemBuilder: (context) => [
+              for (final sort in _DeckSort.values)
+                PopupMenuItem(
+                  value: sort,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(sort == _sortBy ? Icons.check : null, size: 16),
+                      const SizedBox(width: 8),
+                      Text(_deckSortLabels[sort]!),
+                    ],
+                  ),
+                ),
+            ],
           ),
           playerAsync.maybeWhen(
             data: (player) {
@@ -209,7 +269,9 @@ class _PlayerDetailScreenState extends ConsumerState<PlayerDetailScreen> {
                                 .contains(query);
                         return nameMatch || commanderMatch || commander2Match;
                       }).toList();
-                if (visibleDecks.isEmpty) {
+                final sortedDecks =
+                    _sortDecks(visibleDecks, _sortBy, statsByDeckId);
+                if (sortedDecks.isEmpty) {
                   return const Center(
                     child: Text(
                       'Keine Decks gefunden.',
@@ -218,9 +280,9 @@ class _PlayerDetailScreenState extends ConsumerState<PlayerDetailScreen> {
                   );
                 }
                 return ListView.builder(
-                  itemCount: visibleDecks.length,
+                  itemCount: sortedDecks.length,
                   itemBuilder: (context, index) {
-                    final deck = visibleDecks[index];
+                    final deck = sortedDecks[index];
               final commanderLine = deck.commanderName != null &&
                       deck.commanderName!.isNotEmpty
                   ? [
@@ -231,6 +293,12 @@ class _PlayerDetailScreenState extends ConsumerState<PlayerDetailScreen> {
                     ].join(' / ')
                   : null;
               final subtitleParts = [
+                // Performance-Kennzahl vorangestellt, aber nur wenn
+                // auch danach sortiert wird - bei "Name" bleibt die
+                // Zeile wie zuvor (Nutzerwunsch war Sortierung, keine
+                // dauerhafte Zusatzanzeige).
+                if (_sortBy != _DeckSort.name)
+                  _performanceLabel(_sortBy, statsByDeckId[deck.id]),
                 commanderLine ??
                     (deck.colorIdentity.isEmpty
                         ? 'Farblos'
@@ -281,5 +349,75 @@ class _PlayerDetailScreenState extends ConsumerState<PlayerDetailScreen> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+}
+
+/// Sortiert [decks] nach [sortBy] (siehe [_DeckSort]). Bei den drei
+/// Performance-Kriterien wird absteigend sortiert (bestes Deck zuerst)
+/// mit dem Deck-Namen als Tiebreaker bei Gleichstand (v. a. relevant
+/// für Decks ohne jede Partie, die sonst in beliebiger Reihenfolge
+/// nebeneinander landen wuerden) - Decks ohne Eintrag in
+/// [statsByDeckId] (noch nie vom Besitzer dieses Screens selbst
+/// gespielt) gelten dabei als 0 und rutschen so automatisch ans Ende.
+List<Deck> _sortDecks(
+  List<Deck> decks,
+  _DeckSort sortBy,
+  Map<int, DeckWinStats> statsByDeckId,
+) {
+  final sorted = [...decks];
+  int byNameAsc(Deck a, Deck b) =>
+      a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  switch (sortBy) {
+    case _DeckSort.name:
+      sorted.sort(byNameAsc);
+      break;
+    case _DeckSort.winRate:
+      sorted.sort((a, b) {
+        final ra = statsByDeckId[a.id]?.winRate;
+        final rb = statsByDeckId[b.id]?.winRate;
+        if (ra == null && rb == null) return byNameAsc(a, b);
+        if (ra == null) return 1;
+        if (rb == null) return -1;
+        final cmp = rb.compareTo(ra);
+        return cmp != 0 ? cmp : byNameAsc(a, b);
+      });
+      break;
+    case _DeckSort.wins:
+      sorted.sort((a, b) {
+        final wa = statsByDeckId[a.id]?.wins ?? 0;
+        final wb = statsByDeckId[b.id]?.wins ?? 0;
+        final cmp = wb.compareTo(wa);
+        return cmp != 0 ? cmp : byNameAsc(a, b);
+      });
+      break;
+    case _DeckSort.gamesPlayed:
+      sorted.sort((a, b) {
+        final ga = statsByDeckId[a.id]?.gamesPlayed ?? 0;
+        final gb = statsByDeckId[b.id]?.gamesPlayed ?? 0;
+        final cmp = gb.compareTo(ga);
+        return cmp != 0 ? cmp : byNameAsc(a, b);
+      });
+      break;
+  }
+  return sorted;
+}
+
+/// Kurzer Anzeige-Text der zum aktuellen [_DeckSort] passenden
+/// Kennzahl, der Deck-Karte vorangestellt (siehe Aufrufstelle) -
+/// macht die gewählte Sortierung nachvollziehbar. [stats] ist null,
+/// wenn der Besitzer dieses Screens das Deck noch nie selbst gespielt
+/// hat (siehe [_sortDecks]).
+String _performanceLabel(_DeckSort sortBy, DeckWinStats? stats) {
+  switch (sortBy) {
+    case _DeckSort.winRate:
+      if (stats == null || stats.winRate == null) return 'Noch keine Partien';
+      return '${(stats.winRate! * 100).round()}% Siege '
+          '(${stats.wins}/${stats.gamesPlayed})';
+    case _DeckSort.wins:
+      return '${stats?.wins ?? 0} Siege';
+    case _DeckSort.gamesPlayed:
+      return '${stats?.gamesPlayed ?? 0} Partien';
+    case _DeckSort.name:
+      return '';
   }
 }

@@ -83,6 +83,11 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
       startPosition: startPosition,
       team: team,
       tableSide: _defaultTableSide(),
+      // Ist "Unentschieden" schon aktiv, muss auch ein NEU hinzugefügter
+      // Teilnehmer sofort placement:1 bekommen - sonst bliebe er ohne
+      // Platzierung, obwohl die Platzierungs-Eingabe bei Unentschieden
+      // ausgeblendet ist und der Nutzer sie somit nicht nachtragen könnte.
+      placement: _isDraw ? 1 : null,
     );
   }
 
@@ -260,12 +265,19 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   Future<void> _saveManual() async {
     final repo = ref.read(gamesRepositoryProvider);
     final notes = _notesController.text.trim();
+    // Sicherheitsnetz: Bei einem Unentschieden gelten laut App-Konvention
+    // alle Teilnehmer als Sieger (placement == 1, siehe
+    // GameParticipantDraft.isWinner) - unabhängig davon, ob/wann genau
+    // die einzelnen Teilnehmer hinzugefügt wurden.
+    final participants = _isDraw
+        ? [for (final p in _participants) p.copyWith(placement: 1)]
+        : _participants;
     await repo.createManualGame(
       playedAt: _playedAt,
       mode: _mode,
       notes: notes.isEmpty ? null : notes,
       groupId: _groupId,
-      participants: _participants,
+      participants: participants,
       isDraw: _isDraw,
     );
     if (!mounted) return;
@@ -593,9 +605,32 @@ class _ParticipantCard extends StatelessWidget {
                                   ? '${draft.deckName} (geliehen von '
                                       '${draft.deckOwnerName})'
                                   : draft.deckName ??
-                                      (draft.colorIdentity.isEmpty
-                                          ? 'Farblos'
-                                          : draft.colorIdentity),
+                                      // Noch KEIN Deck gewählt UND ein
+                                      // bekannter Spieler (onChangeDeck
+                                      // != null, siehe Klassendoku
+                                      // oben) - statt der irreführenden
+                                      // Standard-Farbidentität
+                                      // "Farblos" (Nutzerwunsch: sah
+                                      // wie eine bewusste Deck-Wahl
+                                      // aus, war aber nur der leere
+                                      // Default) ein klarer Hinweis,
+                                      // dass hier noch eine Auswahl
+                                      // fehlt. Bei einem ECHT
+                                      // farblosen Deck steht ohnehin
+                                      // der Deckname (draft.deckName)
+                                      // da, nicht dieser Zweig. Bei
+                                      // anonymen Teilnehmern
+                                      // (onChangeDeck == null) bleibt
+                                      // "Farblos" korrekt, da dort die
+                                      // Farbidentität bewusst gewählt
+                                      // wird (siehe
+                                      // AddAnonymousParticipantDialog/
+                                      // ColorIdentityPicker).
+                                      (onChangeDeck != null
+                                          ? 'Noch kein Deck ausgewählt'
+                                          : (draft.colorIdentity.isEmpty
+                                              ? 'Farblos'
+                                              : draft.colorIdentity)),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
