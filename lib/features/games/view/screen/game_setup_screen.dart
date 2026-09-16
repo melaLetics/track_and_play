@@ -10,6 +10,7 @@ import '../../model/game_mode_labels.dart';
 import '../../model/game_participant_draft.dart';
 import '../../model/game_setup_validator.dart';
 import '../../model/live_participant.dart';
+import '../../model/table_seat_order.dart';
 import '../../model/table_side_labels.dart';
 import '../widgets/add_anonymous_participant_dialog.dart';
 import '../widgets/add_known_participant_dialog.dart';
@@ -112,6 +113,76 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   void _setTableSide(int index, TableSide side) {
     setState(() {
       _participants[index] = _participants[index].copyWith(tableSide: side);
+    });
+  }
+
+  /// Ordnet ALLE Teilnehmer automatisch anhand ihrer Startreihenfolge um
+  /// den Tisch an (Nutzerwunsch: "Man spielt im Uhrzeigersinn, so dass
+  /// Person 1 rechts von Person 2 sitzt usw." - aktuell hängen
+  /// Sitzplatz und Startreihenfolge komplett unabhängig voneinander).
+  /// Überschreibt bestehende Sitzplatz-Zuordnungen komplett - einzelne
+  /// Teilnehmer lassen sich danach weiterhin wie gewohnt über den
+  /// Sitzplatz-Wähler manuell umsetzen (siehe
+  /// _TableSeatPicker/_setTableSide/_swapStartPositions), diese
+  /// Funktion liefert nur einen (auf Wunsch wiederholbaren) Vorschlag.
+  ///
+  /// Verteilung der Tischseiten: bewusst NUR zwei Seiten (unten/oben)
+  /// statt aller vier (Nutzerwunsch: "wäre es schön, würde man nicht
+  /// auf alle vier Seiten des Tisches verteilt werden, sondern auf zwei
+  /// Tischseiten") - links/rechts bleiben reine manuelle Optionen im
+  /// Sitzplatz-Wähler. Die erste (aufgerundete) Hälfte der Teilnehmer
+  /// in Zugreihenfolge kommt auf "unten", der Rest auf "oben" - KEIN
+  /// striktes Reihum (1,3,5.. unten / 2,4,6.. oben), sondern
+  /// BLOCKWEISE aufeinanderfolgende Zugreihenfolge je Seite: das
+  /// entspricht einem simplen rechteckigen Tisch mit nur zwei langen
+  /// Seiten, an dem man im Uhrzeigersinn reihum Platz nimmt - erst die
+  /// gesamte untere Seite (siehe sortForTableSide: Zugreihenfolge
+  /// verläuft dort von rechts nach links), dann am linken Ende
+  /// "umlaufend" die gesamte obere Seite (dort von links nach rechts) -
+  /// und vom rechten Ende der oberen Seite wieder zurück zum rechten
+  /// Ende der unteren Seite, wo Teilnehmer 1 sitzt (siehe
+  /// table_seat_order.dart für die vollständige Geometrie-Herleitung).
+  void _autoArrangeSeats() {
+    if (_participants.isEmpty) return;
+    final sortedIndexes = [for (var i = 0; i < _participants.length; i++) i]
+      ..sort((a, b) {
+        final posA = _participants[a].startPosition ?? 0;
+        final posB = _participants[b].startPosition ?? 0;
+        return posA.compareTo(posB);
+      });
+    final bottomCount = (sortedIndexes.length / 2).ceil();
+    setState(() {
+      for (var rank = 0; rank < sortedIndexes.length; rank++) {
+        final index = sortedIndexes[rank];
+        final side = rank < bottomCount ? TableSide.bottom : TableSide.top;
+        _participants[index] = _participants[index].copyWith(tableSide: side);
+      }
+    });
+  }
+
+  /// Tauscht die Startposition (Zugreihenfolge) zweier Teilnehmer, die
+  /// aktuell auf DERSELBEN Tischseite sitzen (Nutzerwunsch: "zwei
+  /// Personen, die an einer Tischseite sitzen, [sollen] miteinander die
+  /// Plätze tauschen können"). Da die Position INNERHALB einer Seite
+  /// ausschließlich aus der Startposition abgeleitet wird (siehe
+  /// sortForTableSide), gibt es keinen separaten "Sitzplatz-Rang" zum
+  /// Tauschen - stattdessen werden direkt die beiden Startpositions-
+  /// Werte vertauscht. Wirkt sich NUR auf die relative Zugreihenfolge
+  /// dieser beiden Teilnehmer aus (alle anderen Startpositionen bleiben
+  /// unverändert, die Eindeutigkeit 1..N bleibt automatisch gewahrt) -
+  /// wird von _TableSeatPicker aus dem Popup-Menü eines Sitzplatz-Chips
+  /// heraus aufgerufen (nur Einträge derselben Seite werden dort
+  /// angeboten).
+  void _swapStartPositions(int indexA, int indexB) {
+    setState(() {
+      final posA = _participants[indexA].startPosition;
+      final posB = _participants[indexB].startPosition;
+      _participants[indexA] = _participants[indexA].copyWith(
+        startPosition: posB,
+      );
+      _participants[indexB] = _participants[indexB].copyWith(
+        startPosition: posA,
+      );
     });
   }
 
@@ -498,21 +569,35 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            Text(
-              'Tisch-Anordnung',
-              style: Theme.of(context).textTheme.titleMedium,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Tisch-Anordnung',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _autoArrangeSeats,
+                  icon: const Icon(Icons.route_outlined, size: 18),
+                  label: const Text('Automatisch anordnen'),
+                ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(
               'Bestimmt Position und Drehung der Lebenspunkte-Kacheln in '
               'der Live-Ansicht, wenn das Gerät flach auf dem Tisch liegt. '
-              'Auf einen Namen tippen, um die Seite zu ändern.',
+              'Auf einen Namen tippen, um die Seite zu ändern - oder '
+              '"Automatisch anordnen" lässt die Sitzplätze passend zur '
+              'Startreihenfolge im Uhrzeigersinn vorschlagen.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
             _TableSeatPicker(
               participants: _participants,
               onChanged: _setTableSide,
+              onSwap: _swapStartPositions,
             ),
           ],
           const SizedBox(height: 16),
@@ -796,7 +881,9 @@ class _ArchenemyWinnerSelector extends StatelessWidget {
 /// Live-Grid erscheinen (siehe _LifeGrid in live_game_screen.dart) -
 /// und ordnet jeden Teilnehmer als Chip in seiner aktuell gewählten
 /// Zone ein. Tippen auf einen Chip öffnet ein Menü zum Umstellen der
-/// Seite. Bewusst kein Drag&Drop zwischen den Zonen: in dieser
+/// Seite sowie (falls mind. ein weiterer Teilnehmer auf derselben
+/// Seite sitzt) zum Platz-Tausch mit genau diesem (siehe onSwap).
+/// Bewusst kein Drag&Drop zwischen den Zonen: in dieser
 /// Cloud-Umgebung ohne echtes Flutter-Tooling (nur strukturelle
 /// Klammer-Prüfung, siehe ARCHITECTURE.md) lässt sich eine
 /// Drag-Geste nicht zuverlässig verifizieren - das Tippen+Menü liefert
@@ -807,12 +894,34 @@ class _TableSeatPicker extends StatelessWidget {
   final List<GameParticipantDraft> participants;
   final void Function(int index, TableSide side) onChanged;
 
-  const _TableSeatPicker({required this.participants, required this.onChanged});
+  /// Tauscht die Startposition zweier Teilnehmer DERSELBEN Seite (siehe
+  /// GameSetupScreen._swapStartPositions) - Nutzerwunsch: "zwei
+  /// Personen, die an einer Tischseite sitzen, [sollen] miteinander die
+  /// Plätze tauschen können". Wird aus dem Popup-Menü eines
+  /// Sitzplatz-Chips heraus aufgerufen (siehe _seatChip).
+  final void Function(int indexA, int indexB) onSwap;
 
-  List<int> _indexesFor(TableSide side) => [
-        for (var i = 0; i < participants.length; i++)
-          if ((participants[i].tableSide ?? TableSide.bottom) == side) i,
-      ];
+  const _TableSeatPicker({
+    required this.participants,
+    required this.onChanged,
+    required this.onSwap,
+  });
+
+  /// Indizes der Teilnehmer dieser Seite, sortiert nach Startreihenfolge
+  /// in der für diese Seite geltenden Uhrzeigersinn-Richtung (siehe
+  /// sortForTableSide) - unabhängig davon, in welcher Reihenfolge sie
+  /// ursprünglich zur Partie hinzugefügt wurden.
+  List<int> _indexesFor(TableSide side) {
+    final indexes = [
+      for (var i = 0; i < participants.length; i++)
+        if ((participants[i].tableSide ?? TableSide.bottom) == side) i,
+    ];
+    return sortForTableSide(
+      indexes,
+      side,
+      (i) => participants[i].startPosition,
+    );
+  }
 
   Widget _zone(
     BuildContext context,
@@ -846,9 +955,24 @@ class _TableSeatPicker extends StatelessWidget {
   Widget _seatChip(BuildContext context, int index) {
     final draft = participants[index];
     final current = draft.tableSide ?? TableSide.bottom;
-    return PopupMenuButton<TableSide>(
+    // Andere Teilnehmer derselben Seite - für den "Platz tauschen
+    // mit..."-Menüteil unten (nur sinnvoll unter Teilnehmern derselben
+    // Seite, siehe onSwap-Doku).
+    final sameSideIndexes = [
+      for (var i = 0; i < participants.length; i++)
+        if (i != index &&
+            (participants[i].tableSide ?? TableSide.bottom) == current)
+          i,
+    ];
+    return PopupMenuButton<Object>(
       tooltip: 'Sitzplatz ändern',
-      onSelected: (side) => onChanged(index, side),
+      onSelected: (value) {
+        if (value is TableSide) {
+          onChanged(index, value);
+        } else if (value is int) {
+          onSwap(index, value);
+        }
+      },
       itemBuilder: (context) => [
         for (final side in TableSide.values)
           PopupMenuItem(
@@ -865,6 +989,24 @@ class _TableSeatPicker extends StatelessWidget {
               ],
             ),
           ),
+        if (sameSideIndexes.isNotEmpty) ...[
+          const PopupMenuDivider(),
+          for (final otherIndex in sameSideIndexes)
+            PopupMenuItem(
+              value: otherIndex,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.swap_horiz, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Platz tauschen mit '
+                    '${participants[otherIndex].displayName}',
+                  ),
+                ],
+              ),
+            ),
+        ],
       ],
       child: Chip(label: Text(draft.displayName)),
     );

@@ -275,6 +275,167 @@ Referenzierung statt lokaler IDs, Duplikat-Erkennung).
   geteilt und automatisch als Update des bereits vorhandenen Decks
   erkannt werden).
 
+## Wheel of Fortune (lib/features/wheel/)
+
+Optionales Gamification-Feature fürs Live-Tracking (Nutzerwunsch):
+ein Glücksrad mit 10 Feldern - jede der 5 WUBRG-Farben (Weiß/Blau/
+Schwarz/Rot/Grün) genau zweimal -, dem je Farbe EINE frei
+konfigurierbare Aufgabe zugeordnet ist (z. B. Rot = "Füge jedem
+Gegner einen Schaden zu"). Bewusst reine Anzeige/Zufall OHNE Bezug
+zur Spiel-Datenbank - eine gedrehte Aufgabe wird nur als Text
+angezeigt, die Spieler setzen sie selbst manuell am Tisch um (z. B.
+über die normalen Lebenspunkte-Zähler in LiveGameScreen).
+
+- **Global optional, genau wie "Mitspieler tracken"**: neuer Schalter
+  `AppSettings.wheelOfFortuneEnabled` (SharedPreferences, wie
+  `trackOtherPlayers` - siehe `SettingsRepository`/
+  `SettingsController.setWheelOfFortuneEnabled`), Umschalter in der
+  "Weitere Optionen"-Karte auf dem Home-Screen. Nur bei aktiviertem
+  Schalter: (a) erscheint der "Rad drehen"-Button in `LiveGameScreen`
+  (in der unteren Leiste neben "Partie beenden" - als geteilte, nicht
+  spielerspezifische Aktion dort platziert statt im rotierten
+  Lebenspunkte-Grid, das ja pro Sitzplatz gedreht ist), (b) erscheint
+  die "Wheel of Fortune verwalten"-Karte in "Weitere Optionen".
+- **Aufgaben-Verwaltung statt Freitext beim Spielen**: neues
+  `AppSettings.wheelTasks` (`Map<String,String>`, ein Eintrag je
+  WUBRG-Buchstabe, Schlüsselkonvention wie `wubrgOrder`/`manaColors`)
+  - bewusst über SharedPreferences statt einer neuen Drift-Tabelle
+    gespeichert (5 kurze Texte ohne Relationen/Historie brauchen
+    keine echte DB-Tabelle - und jede neue Tabelle würde laut
+    "Bekannte Einschränkung: keine Datenbank-Migration" unten einen
+    kompletten App-Daten-Reset erzwingen, den dieses leichtgewichtige
+    Zusatzfeature nicht rechtfertigt).
+  - Mitgelieferte Vorbelegung (`SettingsRepository._defaultWheelTasks`)
+    1:1 aus den vom Nutzer selbst genannten Beispielen übernommen
+    (W: "Du erhältst ein Leben dazu", U: "Du hast nach deinem Zug
+    einen weiteren Zug", B: "Jeder Spieler verliert ein Leben", R:
+    "Füge jedem Gegner einen Schaden zu", G: "Jeder bekommt ein
+    generisches Mana") - sofort nutzbar, frei überschreibbar.
+  - `WheelTasksScreen`: eine Karte je Farbe (Reihenfolge `wubrgOrder`),
+    Antippen öffnet `WheelTaskEditorSheet` (Bottom Sheet) mit
+    Freitextfeld. Erreichbar sowohl über "Weitere Optionen" auf dem
+    Home-Screen als auch direkt aus dem Wheel-Overlay heraus (Stift-
+    Icon oben rechts, schließt den Dialog und navigiert dorthin).
+  - **Vorschlags-Chips** (Nutzerwunsch: "ein paar Optionen vorschlagen
+    (positiv und negativ; alle, nur Gegner oder nur sich selbst)"):
+    neue Konstante `wheelTaskSuggestions` (12 Einträge,
+    `wheel_task_suggestion.dart`) - deckt alle 6 Kombinationen aus
+    Polarität (positiv/negativ) und Reichweite (alle/Gegner/du) mit
+    je 2 Beispielen ab, in zwei Gruppen ("Positiv"/"Negativ") als
+    `ActionChip`s im Editor-Sheet angezeigt. Ein Tipp auf einen Chip
+    übernimmt nur den Vorschlagstext ins Feld - bleibt danach frei
+    weiter editierbar, erzwingt keine Auswahl.
+- **`WheelOfFortuneDialog`** (Overlay, per `showDialog` aus
+  `LiveGameScreen._openWheel` geöffnet): zeichnet die 10 Segmente über
+  einen `CustomPainter` (`_WheelSlicesPainter`, Farben aus
+  `core/utils/mana_colors.dart`) plus je Segment ein `ManaSymbol`-Icon
+  (bereits vorhandene Komponente aus dem Deck-Bereich, wiederverwendet)
+  - kein neues Farb-/Icon-System nötig. Feste Feld-Reihenfolge
+  `[...wubrgOrder, ...wubrgOrder]` (interleaved statt geblockt), damit
+  die beiden Felder einer Farbe einander exakt gegenüberliegen (5 von
+  10 Feldern auseinander) - optisch ausgewogen.
+  - Drehen: zufälliger Ziel-Index (`Random().nextInt(10)`, also 20 %
+    Trefferchance je Farbe, fair über die 2 Felder je Farbe), 5-7
+    volle Umdrehungen plus die exakte Zielrotation, damit das
+    getroffene Segment am fest oben positionierten Zeiger zum
+    Stillstand kommt - per `AnimationController`/`Tween`/
+    `Curves.easeOutCubic` animiert (3,6 s). Die Ruhe-Rotation wird
+    zwischen mehreren Drehungen weitergeführt (nicht auf 0
+    zurückgesetzt), damit das Rad nicht sichtbar zurückspringt,
+    sondern von seiner aktuellen Position aus weiterdreht.
+  - Nach dem Stillstand: die in `AppSettings.wheelTasks` hinterlegte
+    Aufgabe der getroffenen Farbe wird NICHT mehr inline unter dem Rad
+    angezeigt (Nutzer-Feedback: "das Resolve gefällt mir nicht"),
+    sondern in einem eigenen, deutlich prominenteren Overlay
+    (`WheelResultOverlay`, per `showGeneralDialog` OBEN AUF dem
+    Wheel-of-Fortune-Dialog eingeblendet, mit Skalier-/Einblend-
+    Transition statt der Standard-Dialog-Animation - wirkt wie eine
+    kleine "Preis-Enthüllung"): großes `ManaSymbol`-Icon (60px) auf
+    weißem Kreis, Farbname und Aufgabentext groß und zentriert,
+    Hintergrund komplett in der getroffenen Mana-Farbe eingefärbt
+    (`manaColors`) - Textfarbe automatisch hell/dunkel je nach
+    Helligkeit dieser Hintergrundfarbe
+    (`ThemeData.estimateBrightnessForColor`), damit z. B. auch Weiß
+    als Hintergrund lesbar bleibt. Schließen über den "Weiter"-Button
+    oder den Rand (`barrierDismissible`) kehrt zum darunterliegenden
+    Wheel-of-Fortune-Dialog zurück, wo "Nochmal drehen" möglich ist,
+    ohne diesen selbst zu schließen.
+  - **Layout: Rad und Buttons nebeneinander statt untereinander**
+    (Nutzer-Feedback: `LiveGameScreen` ist landscape-gesperrt, im
+    ursprünglichen vertikalen Layout - `Column` mit Rad oben, "Drehen"/
+    "Schließen" darunter, in `SingleChildScrollView` gewrappt - mussten
+    die Buttons durch Scrollen erreicht werden). `build()` ordnet Rad
+    (`_buildWheel`, leicht verkleinert auf 220px) und eine schmale
+    Buttons-Spalte (Titel + Stift-Icon, "Drehen"/"Nochmal drehen",
+    "Schließen") stattdessen in einer `Row` an; die äußere
+    `SingleChildScrollView` scrollt jetzt horizontal statt vertikal und
+    dient nur noch als Sicherheitsnetz für sehr schmale Bildschirme -
+    im Normalfall ist kein Scrollen mehr nötig, um zu drehen oder den
+    Dialog zu schließen.
+- **Eskalations-Stufen** (Nutzerwunsch: ursprünglich "drei
+  Eskalations-Stufen ... pro Stufe kann man pro Farbe eine neue Aufgabe
+  definieren. Eine neue Eskalations-Stufe ist dann erreicht, wenn das
+  Rad so oft gedreht wurde, wie Mitspieler an der Partie teilnehmen.
+  Mit der dritten Stufe ist das Maximum erreicht", später in einer
+  eigenen Folge-Anfrage auf "insgesamt fünf Eskalationsstufen"
+  erweitert - das Berechnungsprinzip blieb dabei unverändert, nur die
+  Stufenzahl wuchs): pro WUBRG-Farbe gibt es jetzt statt einer FÜNF
+  Aufgaben - eine je Stufe.
+  - **Datenmodell**: `AppSettings.wheelTasks` bleibt (aus
+    Kompatibilitätsgründen unbenannt) Stufe 1, dazu
+    `wheelTasksStage2`/`wheelTasksStage3`/`wheelTasksStage4`/
+    `wheelTasksStage5` (alle `Map<String,String>`, gleiches Schema,
+    gleiche SharedPreferences-Speicherung wie Stufe 1 -
+    `SettingsRepository` nutzt dafür Schlüssel-Präfixe
+    `wheel_task_2_`/`wheel_task_3_`/`wheel_task_4_`/`wheel_task_5_`,
+    zentral über eine `_wheelTaskPrefix(stage)`-Hilfsfunktion erzeugt
+    statt einzelner Konstanten je Stufe). Migration nicht nötig:
+    bereits gespeicherte Stufe-1/2/3-Aufgaben bleiben unter ihrem
+    bisherigen Schlüssel unverändert erhalten, die neuen Stufen 4/5
+    starten beim ersten Laden mit denselben Standardtexten wie alle
+    anderen Stufen (frei überschreibbar). `AppSettings.
+    wheelTasksForStage(int stage)` liefert die passende Map (Werte
+    außerhalb 1-5 fallen auf Stufe 1 zurück). `SettingsController.
+    setWheelTask(color, text, {stage: 1})` schreibt gezielt in die Map
+    der übergebenen Stufe.
+  - **`WheelTasksScreen`**: `TabBar`/`TabBarView` mit jetzt 5 Reitern
+    ("Stufe 1".."Stufe 5", `DefaultTabController`, `TabBar` zusätzlich
+    `isScrollable: true` gesetzt, damit alle 5 Reiter-Labels auf
+    schmalen Bildschirmen Platz finden) - jeder Reiter zeigt dieselben
+    5 Farb-Karten, aber mit den Aufgaben der jeweiligen Stufe;
+    `WheelTaskEditorSheet` zeigt die Stufe weiterhin rein informativ im
+    Sheet-Titel ("Aufgabe für Rot · Stufe 4").
+  - **Stufen-Berechnung** (`WheelOfFortuneDialog._stageForSpinNumber`,
+    `_maxStage = 5`): Eskalation ist an die einzelne Partie/
+    Live-Sitzung gebunden, nicht global - Grundlage ist ein
+    Drehungs-Zähler `_wheelSpinsCompleted` in `_LiveGameScreenState`
+    (nicht im Dialog selbst, da dieser bei jedem Öffnen per
+    `showDialog` neu erzeugt wird und seinen State beim Schließen
+    verlieren würde), der als `spinsCompleted` beim Öffnen des Dialogs
+    übergeben und über den Callback `onSpinCompleted` nach jeder
+    Drehung hochgezählt wird - so bleibt die Eskalation auch über
+    mehrfaches Schließen/Wiederöffnen des Wheel-Overlays innerhalb
+    derselben Partie konsistent. **Angenommen** (Nutzerwunsch spricht
+    von "Mitspieler[n], die an der Partie teilnehmen", nicht weiter
+    präzisiert): gemeint ist die GESAMTE Teilnehmerzahl der Partie
+    (`widget.participants.length` in `LiveGameScreen`, inkl. man
+    selbst), nicht nur die Gegner. Stufe für die n-te Drehung (1-
+    indiziert): `stageIndex = ((n - 1) ~/ teilnehmerzahl).clamp(0,
+    _maxStage - 1)`, Stufe = `stageIndex + 1` - d. h. die ersten
+    `teilnehmerzahl` Drehungen nutzen Stufe 1, danach schaltet die
+    Stufe alle weiteren `teilnehmerzahl` Drehungen eins weiter, ab der
+    `(4 * teilnehmerzahl + 1)`-ten Drehung dauerhaft Stufe 5
+    (`clamp` verhindert ein Überschreiten). Startet eine Live-Partie neu
+    bzw. wird eine verlassene Live-Partie fortgesetzt, beginnt die
+    Eskalation bei 0 - konsistent damit, dass das Wheel ohnehin bewusst
+    reine Sitzungs-Optik ohne DB-Bezug ist (siehe oben).
+  - **Anzeige**: der Wheel-of-Fortune-Dialog zeigt unter dem
+    "Drehen"-Button die Stufe, die die NÄCHSTE Drehung auslösen würde
+    ("Stufe X von 5"); `WheelResultOverlay` zeigt zusätzlich zur
+    getroffenen Farbe die Stufe, zu der die soeben resolvte Aufgabe
+    gehört (kleines "STUFE X"-Label über dem Farbnamen) - macht die
+    Eskalation für alle am Tisch sichtbar nachvollziehbar.
+
 ## Aktueller Stand / nächste Schritte
 
 Bereits vorhanden:
@@ -2656,6 +2817,118 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
     ein einzeln per QR geteiltes überarbeitetes Deck (`ExportService.
     buildDeckQrBundle`) durchläuft denselben Abgleich wie ein
     komplettes Datei-Bundle.
+
+- **`LiveGameScreen`: Screen-Header (AppBar) entfernt** (Nutzer-Feedback:
+  "Der Screen Header ist unnötig und nimmt zu viel Platz ein"). Der
+  Modus-Titel in der AppBar war reine Wiederholung einer bereits im
+  Setup getroffenen Auswahl, kostete aber gerade im landscape-
+  gesperrten Live-Tracking wertvolle Höhe fürs Lebenspunkte-Grid.
+  `Scaffold.appBar` komplett entfernt, `body` besteht jetzt nur noch
+  aus `SafeArea(child: _LifeGrid(...))`.
+  Bewusst KEIN Ersatz-Button (z. B. schwebender Zurück-Pfeil) an
+  Stelle der AppBar: `_LifeGrid` füllt in JEDER Sitzanordnung (2-6
+  Teilnehmer, alle vier Tischseiten möglich) den kompletten Bildschirm
+  inklusive aller vier Ecken mit Tipp-Flächen (`_LifeTile`s +/-
+  Bereiche, teils um 90°/180°/270° rotiert je nach Tischseite) - ein
+  fix positionierter Overlay-Button würde je nach Teilnehmerzahl/
+  -anordnung unvorhersehbar eine dieser Tipp-Flächen überlappen.
+  Verlassen des Screens bleibt über die System-Navigation (Zurück-
+  Geste/-Taste, unabhängig von der AppBar) weiterhin möglich - siehe
+  "Bekannte Einschränkung" oben: eine so verlassene Live-Partie bleibt
+  bereits heute (unverändert durch diesen Fix) dauerhaft im Status
+  `inProgress`.
+  Der bisher nur für den AppBar-Titel genutzte Import
+  `game_mode_labels.dart` wurde aus `live_game_screen.dart` entfernt
+  (ungenutzt) - `widget.mode` selbst wird an anderer Stelle in der
+  Datei weiterhin für die Team-/Erzfeind-Logik gebraucht und blieb
+  daher erhalten.
+
+- **`_LifeTile`: +/- horizontal statt vertikal um die
+  Lebenspunkteanzeige** (Nutzerwunsch: "das + und - ... sollen rechts
+  und links neben der Lebenspunkteanzeige stehen. Links davon das '-'
+  und rechts davon das '+'"). Vorher: `Column` mit "+"-Tippfläche
+  oben, Zahl in der Mitte, "-"-Tippfläche unten. Jetzt: Zahl UND beide
+  Tippflächen stehen in einer gemeinsamen `Row` (`Expanded` "-" links,
+  Zahl mittig, `Expanded` "+" rechts) - der Name-Label-Header über
+  dieser Row bleibt unverändert. Die Anordnung wird weiterhin einmalig
+  im UNROTIERTEN Inhalt festgelegt (siehe `RotatedBox` am Ende von
+  `_LifeTile.build`) und gilt dadurch automatisch aus Sicht jedes
+  Spielers korrekt, unabhängig von dessen Tischseite - exakt dasselbe
+  Prinzip wie schon zuvor bei "+" oben/"-" unten.
+
+- **Sitzanordnung berücksichtigt jetzt die Startreihenfolge**
+  (Nutzerwunsch: "Man spielt im Uhrzeigersinn, so dass Person 1 rechts
+  von Person 2 sitzt usw." - Sitzplatz und Startreihenfolge waren
+  bisher komplett unabhängig: der Sitzplatz-Wähler ordnete Teilnehmer
+  frei einer Seite zu, INNERHALB einer Seite bestimmte rein die
+  Hinzufüge-Reihenfolge die Anzeige-Position). Per AskUserQuestion
+  geklärt, wie automatisch das sein soll - Nutzer hat sich für
+  "automatisch vorschlagen, manuell überschreibbar" entschieden (statt
+  komplett automatisch ohne Wähler, oder nur Sortierung innerhalb einer
+  Seite ohne Seiten-Zuordnung).
+  - **Geometrie/Uhrzeigersinn-Konvention** (neu:
+    `lib/features/games/model/table_seat_order.dart`, ausführlich dort
+    hergeleitet): bei jedem Spieler sitzt der im Uhrzeigersinn NÄCHSTE
+    Mitspieler aus dessen eigener, zum Tisch gewandter Perspektive
+    immer an dessen LINKER Seite - der VORHERIGE Spieler damit an
+    dessen RECHTER Seite, exakt die vom Nutzer genannte Regel. Auf
+    Bildschirm-Koordinaten übersetzt (jede Tischseite schaut zur
+    Mitte, siehe die Rotationen in `_LifeGrid`) ergibt sich je Seite
+    eine feste Sortierrichtung: oben/rechts aufsteigend nach
+    Startposition, unten/links ABSTEIGEND.
+  - **`sortForTableSide<T>(items, side, startPositionOf)`**: sortiert
+    eine bereits einer Seite zugeordnete Liste nach obiger Regel - wird
+    JETZT IMMER beim Rendern angewendet, sowohl im Setup-Wähler
+    (`_TableSeatPicker._indexesFor`) als auch im Live-Grid
+    (`_LifeGrid` - `top`/`bottom`/`left`/`right`), unabhängig davon, ob
+    die Seiten-Zuordnung automatisch oder manuell zustande kam. Löst
+    das Problem also auch für rein manuell zusammengestellte
+    Sitzordnungen, nicht nur nach Nutzung des neuen Buttons unten.
+  - **Button "Automatisch anordnen"** (`GameSetupScreen.
+    _autoArrangeSeats`, neben der "Tisch-Anordnung"-Überschrift):
+    ordnet ALLE Teilnehmer nach Startposition sortiert der Tischseite
+    zu. **Bewusst NUR zwei Seiten** (unten/oben) statt vier
+    (Nutzerwunsch, direkt im Anschluss an die erste Version dieses
+    Buttons geäußert: "wäre es schön, würde man nicht auf alle vier
+    Seiten des Tisches verteilt werden, sondern auf zwei
+    Tischseiten") - links/rechts bleiben reine manuelle Optionen im
+    Sitzplatz-Wähler, für die automatische Anordnung ungenutzt. Die
+    erste (aufgerundete) Hälfte der Teilnehmer in Zugreihenfolge kommt
+    auf "unten", der Rest auf "oben" - BLOCKWEISE aufeinanderfolgende
+    Zugreihenfolge je Seite (nicht abwechselnd 1/3/5.. unten,
+    2/4/6.. oben): entspricht einem einfachen rechteckigen Tisch mit
+    nur zwei langen Seiten, an dem man im Uhrzeigersinn reihum Platz
+    nimmt - erst komplett die untere Seite (dort verläuft die
+    Zugreihenfolge laut `sortForTableSide` von rechts nach links), am
+    linken Ende "umlaufend" weiter mit der oberen Seite (dort von
+    links nach rechts), vom rechten Ende der oberen Seite geht es
+    zurück zum rechten Ende der unteren Seite, wo Teilnehmer 1 sitzt -
+    ein in sich stimmiger Uhrzeigersinn-Rundlauf trotz nur zweier
+    Seiten. Überschreibt bestehende Sitzplatz-Zuordnungen komplett, ist
+    beliebig oft wiederholbar (z. B. nach nachträglicher Änderung der
+    Startreihenfolge) und liefert nur einen VORSCHLAG - einzelne
+    Teilnehmer bleiben danach weiterhin über den Sitzplatz-Wähler frei
+    manuell umsetzbar (inkl. links/rechts, falls gewünscht).
+  - **Plätze innerhalb einer Seite tauschen** (Nutzerwunsch: "wenn zwei
+    Personen, die an einer Tischseite sitzen, miteinander die Plätze
+    tauschen könnten"). Da die Position INNERHALB einer Seite
+    ausschließlich aus der Startposition abgeleitet wird (siehe
+    `sortForTableSide` oben), gibt es keinen separaten "Sitzplatz-Rang"
+    zum Tauschen - `GameSetupScreen._swapStartPositions(indexA,
+    indexB)` vertauscht stattdessen direkt die beiden
+    Startpositions-Werte der Teilnehmer. Wirkt sich NUR auf die
+    relative Zugreihenfolge dieser beiden Teilnehmer aus (alle anderen
+    Startpositionen bleiben unverändert, die Eindeutigkeit 1..N bleibt
+    automatisch gewahrt, da nur zwei bereits eindeutige Werte die
+    Plätze tauschen). Erreichbar über das ohnehin schon vorhandene
+    Popup-Menü eines Sitzplatz-Chips (`_TableSeatPicker._seatChip`) -
+    zusätzlich zu den vier Seiten-Optionen erscheint dort (nur wenn
+    mindestens ein weiterer Teilnehmer auf derselben Seite sitzt, durch
+    einen `PopupMenuDivider` abgetrennt) je ein Eintrag "Platz tauschen
+    mit [Name]" für jeden anderen Teilnehmer dieser Seite. Technisch:
+    `PopupMenuButton<TableSide>` wurde zu `PopupMenuButton<Object>`
+    erweitert (`onSelected` unterscheidet per `is TableSide`/`is int`,
+    ob eine Seite gewählt oder ein Tausch-Ziel-Index angetippt wurde).
 
 ## Untersuchter Verdachtsfall: Umlaute beim Export (nicht reproduzierbar)
 

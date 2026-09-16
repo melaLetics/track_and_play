@@ -44,6 +44,65 @@ class SettingsController extends AsyncNotifier<AppSettings> {
     await repo.save(updated);
     state = AsyncData(updated);
   }
+
+  /// Schaltet das Wheel-of-Fortune-Feature global ein/aus (siehe
+  /// AppSettings.wheelOfFortuneEnabled) - Umschalter auf dem
+  /// Home-Screen, analog zu [setTrackOtherPlayers]. Rein additiv:
+  /// bereits hinterlegte Aufgaben (AppSettings.wheelTasks) bleiben
+  /// beim Ausschalten erhalten, nur der "Rad drehen"-Button in
+  /// LiveGameScreen wird ausgeblendet.
+  Future<void> setWheelOfFortuneEnabled(bool enabled) async {
+    final current = state.value;
+    if (current == null) return;
+    final repo = ref.read(settingsRepositoryProvider);
+    final updated = current.copyWith(wheelOfFortuneEnabled: enabled);
+    await repo.save(updated);
+    state = AsyncData(updated);
+  }
+
+  /// Setzt die Aufgabe für GENAU eine WUBRG-Farbe auf der übergebenen
+  /// Eskalations-Stufe (1-5, siehe AppSettings.wheelTasks/
+  /// wheelTasksStage2/.../wheelTasksStage5) - die übrigen Farben UND
+  /// die übrigen Stufen bleiben unverändert. Wird von WheelTasksScreen
+  /// aufgerufen.
+  Future<void> setWheelTask(
+    String color,
+    String taskText, {
+    int stage = 1,
+  }) async {
+    final current = state.value;
+    if (current == null) return;
+    final repo = ref.read(settingsRepositoryProvider);
+    AppSettings updated;
+    switch (stage) {
+      case 2:
+        final updatedTasks = Map<String, String>.from(current.wheelTasksStage2)
+          ..[color] = taskText;
+        updated = current.copyWith(wheelTasksStage2: updatedTasks);
+        break;
+      case 3:
+        final updatedTasks = Map<String, String>.from(current.wheelTasksStage3)
+          ..[color] = taskText;
+        updated = current.copyWith(wheelTasksStage3: updatedTasks);
+        break;
+      case 4:
+        final updatedTasks = Map<String, String>.from(current.wheelTasksStage4)
+          ..[color] = taskText;
+        updated = current.copyWith(wheelTasksStage4: updatedTasks);
+        break;
+      case 5:
+        final updatedTasks = Map<String, String>.from(current.wheelTasksStage5)
+          ..[color] = taskText;
+        updated = current.copyWith(wheelTasksStage5: updatedTasks);
+        break;
+      default:
+        final updatedTasks = Map<String, String>.from(current.wheelTasks)
+          ..[color] = taskText;
+        updated = current.copyWith(wheelTasks: updatedTasks);
+    }
+    await repo.save(updated);
+    state = AsyncData(updated);
+  }
 }
 
 final settingsControllerProvider =

@@ -217,7 +217,7 @@ class _GameYearSection extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ExpansionTile(
-        initiallyExpanded: true,
+        initiallyExpanded: year == DateTime.now().year,
         title: Text(
           '$year ($totalGames ${totalGames == 1 ? 'Partie' : 'Partien'})',
           style: Theme.of(

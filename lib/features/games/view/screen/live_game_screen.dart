@@ -6,11 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../../database/app_database.dart';
+import '../../../settings/controller/provider/app_settings_provider.dart';
+import '../../../wheel/view/widgets/wheel_of_fortune_dialog.dart';
 import '../../controller/provider/games_repository_provider.dart';
-import '../../model/game_mode_labels.dart';
 import '../../model/game_participant_draft.dart';
 import '../../model/game_setup_validator.dart';
 import '../../model/live_participant.dart';
+import '../../model/table_seat_order.dart';
 
 /// Live-Erfassung einer laufenden Partie: Lebenspunktezähler pro
 /// Teilnehmer, Laufzeit-Timer und automatische "First Blood"-Markierung
@@ -61,6 +63,18 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
   final List<int> _eliminationOrder = [];
   Timer? _ticker;
   bool _finishing = false;
+
+  /// Anzahl bereits erfolgter Wheel-of-Fortune-Drehungen DIESER Partie
+  /// (siehe WheelOfFortuneDialog.spinsCompleted/onSpinCompleted) - lebt
+  /// hier statt im Dialog selbst, da dieser bei jedem Öffnen per
+  /// showDialog neu erzeugt wird und seinen eigenen State beim
+  /// Schließen verlieren würde. Bestimmt zusammen mit der
+  /// Teilnehmerzahl die aktuelle Eskalations-Stufe (Nutzerwunsch).
+  /// Startet bei 0 je Partie-Sitzung - wird eine Live-Partie verlassen
+  /// und später fortgesetzt, beginnt die Eskalation neu (das Rad selbst
+  /// ist bewusst reine Sitzungs-Optik ohne DB-Bezug, siehe
+  /// ARCHITECTURE.md).
+  int _wheelSpinsCompleted = 0;
 
   @override
   void initState() {
@@ -182,13 +196,45 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
     }
   }
 
+  /// Öffnet das Wheel-of-Fortune-Overlay (siehe WheelOfFortuneDialog) -
+  /// nur aufrufbar, wenn AppSettings.wheelOfFortuneEnabled aktiv ist
+  /// (siehe build, "Rad drehen"-Button in der unteren Leiste).
+  void _openWheel() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => WheelOfFortuneDialog(
+        participantCount: widget.participants.length,
+        spinsCompleted: _wheelSpinsCompleted,
+        onSpinCompleted: () => setState(() => _wheelSpinsCompleted++),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Nutzerwunsch: das Wheel-of-Fortune-Gamification-Feature ist -
+    // genau wie das Tracken anderer Spieler/Gruppen - optional und
+    // wird global auf dem Home-Screen ein-/ausgeschaltet (siehe
+    // AppSettings.wheelOfFortuneEnabled) - der "Rad drehen"-Button
+    // unten erscheint daher nur, wenn aktiviert.
+    final wheelEnabled = ref.watch(settingsControllerProvider).maybeWhen(
+          data: (settings) => settings.wheelOfFortuneEnabled,
+          orElse: () => false,
+        );
+    // Nutzerwunsch: der Screen-Header (AppBar) ist "unnötig und nimmt
+    // zu viel Platz ein" - gerade im landscape-gesperrten Live-Tracking
+    // ist jeder Pixel Höhe für das Lebenspunkte-Grid wertvoll. Bewusst
+    // KEIN Ersatz-Button o. Ä. an seiner Stelle: das Lebenspunkte-Grid
+    // (_LifeGrid) füllt in jeder Sitzanordnung den kompletten Bildschirm
+    // inkl. aller vier Ecken mit Tipp-Flächen (+/- je Teilnehmer, siehe
+    // _LifeTile) - ein schwebender Zurück-Button würde dort zwangsläufig
+    // irgendeine dieser Tipp-Flächen überlappen. Verlassen des Screens
+    // bleibt über die System-Navigation (Zurück-Geste/-Taste) weiterhin
+    // möglich, unabhängig von der AppBar - siehe ARCHITECTURE.md für die
+    // bereits bestehende, bekannte Einschränkung, dass eine so
+    // verlassene Live-Partie im Status "inProgress" verbleibt.
     return Scaffold(
-      appBar: AppBar(
-        title: Text(gameModeLabels[widget.mode] ?? widget.mode.name),
-      ),
       body: SafeArea(
         child: _LifeGrid(
           participants: widget.participants,
@@ -215,6 +261,14 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
               const SizedBox(width: 6),
               Text(_elapsedLabel, style: Theme.of(context).textTheme.bodyMedium),
               const Spacer(),
+              if (wheelEnabled) ...[
+                OutlinedButton.icon(
+                  onPressed: _finishing ? null : _openWheel,
+                  icon: const Icon(Icons.casino),
+                  label: const Text('Rad drehen'),
+                ),
+                const SizedBox(width: 12),
+              ],
               FilledButton.icon(
                 onPressed: _finishing ? null : _finishGame,
                 icon: const Icon(Icons.flag),
@@ -283,18 +337,32 @@ class _LifeGrid extends StatelessWidget {
         ],
       );
     }
-    final top = [
-      for (final p in participants) if (_sideOf(p) == TableSide.top) p,
-    ];
-    final bottom = [
-      for (final p in participants) if (_sideOf(p) == TableSide.bottom) p,
-    ];
-    final left = [
-      for (final p in participants) if (_sideOf(p) == TableSide.left) p,
-    ];
-    final right = [
-      for (final p in participants) if (_sideOf(p) == TableSide.right) p,
-    ];
+    // Innerhalb jeder Seite nach Startreihenfolge sortiert (siehe
+    // sortForTableSide) - Nutzerwunsch: "Man spielt im Uhrzeigersinn,
+    // so dass Person 1 rechts von Person 2 sitzt usw." Gilt für JEDE
+    // Sitzanordnung, auch manuell über den Sitzplatz-Wähler im Setup
+    // zusammengestellte - die reine Hinzufüge-Reihenfolge der
+    // Teilnehmer spielt für die Anzeige-Position keine Rolle mehr.
+    final top = sortForTableSide(
+      [for (final p in participants) if (_sideOf(p) == TableSide.top) p],
+      TableSide.top,
+      (p) => p.startPosition,
+    );
+    final bottom = sortForTableSide(
+      [for (final p in participants) if (_sideOf(p) == TableSide.bottom) p],
+      TableSide.bottom,
+      (p) => p.startPosition,
+    );
+    final left = sortForTableSide(
+      [for (final p in participants) if (_sideOf(p) == TableSide.left) p],
+      TableSide.left,
+      (p) => p.startPosition,
+    );
+    final right = sortForTableSide(
+      [for (final p in participants) if (_sideOf(p) == TableSide.right) p],
+      TableSide.right,
+      (p) => p.startPosition,
+    );
 
     final hasMiddleRow = left.isNotEmpty || right.isNotEmpty;
 
@@ -409,29 +477,41 @@ class _LifeTile extends StatelessWidget {
               ],
             ),
           ),
+          // Nutzerwunsch: "+" und "-" stehen rechts/links neben der
+          // Lebenspunkteanzeige statt darüber/darunter - "-" links,
+          // "+" rechts. Diese Anordnung wird EINMAL im unrotierten
+          // Inhalt festgelegt und gilt dadurch automatisch korrekt aus
+          // Sicht jedes Spielers, auch nach der RotatedBox unten (siehe
+          // bisher schon so gehandhabtes Muster).
           Expanded(
-            child: InkWell(
-              onTap: () => onDelta(1),
-              onLongPress: () => onDelta(5),
-              child: Center(
-                child: Icon(Icons.add, size: 26, color: accentColor),
-              ),
-            ),
-          ),
-          Text(
-            '$life',
-            style: theme.textTheme.displayMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: life <= 0 ? scheme.error : scheme.onSurface,
-            ),
-          ),
-          Expanded(
-            child: InkWell(
-              onTap: () => onDelta(-1),
-              onLongPress: () => onDelta(-5),
-              child: Center(
-                child: Icon(Icons.remove, size: 26, color: accentColor),
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => onDelta(-1),
+                    onLongPress: () => onDelta(-5),
+                    child: Center(
+                      child: Icon(Icons.remove, size: 26, color: accentColor),
+                    ),
+                  ),
+                ),
+                Text(
+                  '$life',
+                  style: theme.textTheme.displayMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: life <= 0 ? scheme.error : scheme.onSurface,
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => onDelta(1),
+                    onLongPress: () => onDelta(5),
+                    child: Center(
+                      child: Icon(Icons.add, size: 26, color: accentColor),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

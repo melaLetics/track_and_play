@@ -6,6 +6,7 @@ import '../../groups/view/screen/groups_overview_screen.dart';
 import '../../import/view/screen/import_wizard_screen.dart';
 import '../../players/controller/provider/players_repository_provider.dart';
 import '../../settings/controller/provider/app_settings_provider.dart';
+import '../../wheel/view/screen/wheel_tasks_screen.dart';
 import 'widgets/elo_score_card.dart';
 import 'widgets/last_achievements_card.dart';
 import 'widgets/last_game_reminder_card.dart';
@@ -116,6 +117,10 @@ class _QuickLinksCard extends ConsumerWidget {
       data: (settings) => settings.trackOtherPlayers,
       orElse: () => false,
     );
+    final wheelOfFortuneEnabled = settingsAsync.maybeWhen(
+      data: (settings) => settings.wheelOfFortuneEnabled,
+      orElse: () => false,
+    );
 
     final items = [
       if (trackOtherPlayers)
@@ -123,6 +128,12 @@ class _QuickLinksCard extends ConsumerWidget {
           icon: Icons.groups,
           label: 'Gruppen verwalten',
           builder: (_) => const GroupsOverviewScreen(),
+        ),
+      if (wheelOfFortuneEnabled)
+        _QuickLinkItem(
+          icon: Icons.casino,
+          label: 'Wheel of Fortune verwalten',
+          builder: (_) => const WheelTasksScreen(),
         ),
       _QuickLinkItem(
         icon: Icons.ios_share,
@@ -178,6 +189,26 @@ class _QuickLinksCard extends ConsumerWidget {
               ref
                   .read(settingsControllerProvider.notifier)
                   .setTrackOtherPlayers(value);
+            },
+          ),
+          const Divider(height: 1),
+          // Nutzerwunsch: Gamification-Feature fürs Live-Tracking,
+          // genau wie "Mitspieler tracken" oben als globaler
+          // Ein-/Aus-Schalter (siehe ARCHITECTURE.md) - nur bei
+          // aktiviertem Schalter erscheint der "Rad drehen"-Button in
+          // LiveGameScreen sowie die "Wheel of Fortune verwalten"-Karte
+          // oben.
+          SwitchListTile(
+            secondary: const Icon(Icons.casino_outlined),
+            title: const Text('Wheel of Fortune'),
+            subtitle: const Text(
+              'Glücksrad mit Zusatzaufgaben im Live-Tracking',
+            ),
+            value: wheelOfFortuneEnabled,
+            onChanged: (value) {
+              ref
+                  .read(settingsControllerProvider.notifier)
+                  .setWheelOfFortuneEnabled(value);
             },
           ),
           const SizedBox(height: 4),
