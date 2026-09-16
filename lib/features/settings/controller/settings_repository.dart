@@ -16,14 +16,64 @@ class SettingsRepository {
   static String _wheelTaskPrefix(int stage) =>
       stage <= 1 ? 'wheel_task_' : 'wheel_task_${stage}_';
 
-  /// Mitgelieferte Vorbelegung der Wheel-of-Fortune-Aufgaben - 1:1 aus
-  /// den Beispielen des Nutzers übernommen, damit das Feature sofort
-  /// sinnvoll nutzbar ist, ohne dass erst alle 5 Farben manuell
-  /// befüllt werden müssen. Frei überschreibbar über WheelTasksScreen.
-  /// Gilt als Start-Vorbelegung für ALLE 5 Eskalations-Stufen
-  /// gleichermaßen (siehe _loadWheelTasks) - jede Stufe ist danach
-  /// unabhängig überschreibbar.
-  static const Map<String, String> _defaultWheelTasks = {
+  /// Mitgelieferte Vorbelegung der Wheel-of-Fortune-Aufgaben, thematisch
+  /// über die 5 Eskalations-Stufen hinweg abgestuft (vom Nutzer als
+  /// "Runde 1" bis "Runde 5" vorgegeben, jeweils sortiert nach
+  /// Grün-Weiß-Blau-Rot-Schwarz). Frei überschreibbar über
+  /// WheelTasksScreen - jede Stufe ist unabhängig überschreibbar, siehe
+  /// _loadWheelTasks.
+  static const Map<int, Map<String, String>> _defaultWheelTasksByStage = {
+    1: {
+      'G': 'Free Rampant Growth',
+      'W': 'Ziehe eine Karte',
+      'U': 'Jeder Spieler Scry 1',
+      'R': 'Verliere drei Leben',
+      'B': 'Wirf eine Karte ab',
+    },
+    2: {
+      'G': 'Jeder zieht eine Karte',
+      'W': 'Erzeuge zwei Treasures',
+      'U': 'Free Counter Spell',
+      'R': 'Opfere ein Permanent',
+      'B': 'Verliere fünf Leben',
+    },
+    3: {
+      'G': 'Free Generous Gift',
+      'W': 'Ziehe Zwei Karten',
+      'U': 'Jeder Spieler bekommt zwei Treasures',
+      'R': 'Verschenke ein Permanent',
+      'B': 'Verliere zehn Leben',
+    },
+    4: {
+      'G': 'Erzeuge einen 8/8 Dino Token mit Trampeln und Eile',
+      'W': "Teferi's Protection",
+      'U': 'Jeder zieht zwei Karten',
+      'R': 'Nur ein Spell diesen Turn',
+      'B': 'Drei Permanente opfern',
+    },
+    5: {
+      'G': 'Free Demonic Tutor',
+      'W': 'Du kannst mit jemanden die Lebenspunkte tauschen',
+      'U': 'Oberste Karte der Bibliothek spielen ohne Manakosten zu bezahlen',
+      'R': 'Tausche deine Lebenspunkte mit dem Spieler, der die wenigsten hat',
+      'B': 'Überspringe deinen eigenen Zug',
+    },
+  };
+
+  /// Alte, bis vor Kurzem für ALLE 5 Stufen gemeinsam genutzte
+  /// Platzhalter-Vorbelegung (vor der thematischen Ausdifferenzierung je
+  /// Stufe). Wird nur noch als Erkennungsmerkmal gebraucht: Da [save]
+  /// immer den kompletten [AppSettings]-Snapshot inklusive ALLER
+  /// Aufgaben-Maps persistiert (nicht nur die eine gerade geänderte
+  /// Farbe/Stufe), wurde dieser alte Platzhaltertext bei jedem noch so
+  /// kleinen Settings-Update (z. B. Wheel of Fortune ein-/ausschalten)
+  /// unbeabsichtigt fest unter dem jeweiligen SharedPreferences-
+  /// Schlüssel "eingefroren", obwohl der Nutzer ihn nie bewusst gesetzt
+  /// hatte. Ein gespeicherter Wert, der exakt diesem alten Text
+  /// entspricht, wird deshalb beim Laden wie "nicht gesetzt" behandelt,
+  /// damit die neuen, stufenspezifischen Default-Texte tatsächlich
+  /// ankommen.
+  static const Map<String, String> _legacySharedDefaults = {
     'W': 'Du erhältst ein Leben dazu',
     'U': 'Du hast nach deinem Zug einen weiteren Zug',
     'B': 'Jeder Spieler verliert ein Leben',
@@ -33,10 +83,26 @@ class SettingsRepository {
 
   Map<String, String> _loadWheelTasks(SharedPreferences prefs, int stage) {
     final prefix = _wheelTaskPrefix(stage);
+    final defaults = _defaultWheelTasksByStage[stage] ?? _defaultWheelTasksByStage[1]!;
     return {
-      for (final entry in _defaultWheelTasks.entries)
-        entry.key: prefs.getString('$prefix${entry.key}') ?? entry.value,
+      for (final entry in defaults.entries)
+        entry.key: _resolveSavedTask(
+          prefs.getString('$prefix${entry.key}'),
+          entry.key,
+          entry.value,
+        ),
     };
+  }
+
+  /// Liefert den gespeicherten Aufgabentext - außer es ist keiner
+  /// gespeichert (null) oder der gespeicherte Wert entspricht exakt dem
+  /// alten, stufenübergreifend geteilten Platzhaltertext dieser Farbe
+  /// (siehe [_legacySharedDefaults]); in beiden Fällen wird stattdessen
+  /// der neue, stufenspezifische Default zurückgegeben.
+  String _resolveSavedTask(String? saved, String color, String newDefault) {
+    if (saved == null) return newDefault;
+    if (saved == _legacySharedDefaults[color]) return newDefault;
+    return saved;
   }
 
   Future<void> _saveWheelTasks(

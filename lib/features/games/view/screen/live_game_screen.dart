@@ -225,15 +225,20 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
     // Nutzerwunsch: der Screen-Header (AppBar) ist "unnötig und nimmt
     // zu viel Platz ein" - gerade im landscape-gesperrten Live-Tracking
     // ist jeder Pixel Höhe für das Lebenspunkte-Grid wertvoll. Bewusst
-    // KEIN Ersatz-Button o. Ä. an seiner Stelle: das Lebenspunkte-Grid
-    // (_LifeGrid) füllt in jeder Sitzanordnung den kompletten Bildschirm
-    // inkl. aller vier Ecken mit Tipp-Flächen (+/- je Teilnehmer, siehe
-    // _LifeTile) - ein schwebender Zurück-Button würde dort zwangsläufig
-    // irgendeine dieser Tipp-Flächen überlappen. Verlassen des Screens
-    // bleibt über die System-Navigation (Zurück-Geste/-Taste) weiterhin
-    // möglich, unabhängig von der AppBar - siehe ARCHITECTURE.md für die
-    // bereits bestehende, bekannte Einschränkung, dass eine so
-    // verlassene Live-Partie im Status "inProgress" verbleibt.
+    // KEIN schwebender Ersatz-Button ÜBER dem Grid: das Lebenspunkte-
+    // Grid (_LifeGrid) füllt in jeder Sitzanordnung den kompletten
+    // Bildschirm inkl. aller vier Ecken mit Tipp-Flächen (+/- je
+    // Teilnehmer, siehe _LifeTile) - ein dort platzierter Button würde
+    // zwangsläufig irgendeine dieser Tipp-Flächen überlappen. Verlassen
+    // des Screens bleibt daher zusätzlich über die System-Navigation
+    // (Zurück-Geste/-Taste) möglich; als EXPLIZITER In-App-Button dafür
+    // sitzt ein Zurück-Pfeil in der Timer-Zeile der unteren Leiste
+    // (Nutzerwunsch: "einen Backtick Pfeil ... damit man diesen Screen
+    // verlassen kann"), da dort ohnehin fester Platz reserviert und
+    // frei von Tipp-Flächen ist. Tracking läuft dabei unverändert im
+    // Hintergrund weiter - siehe ARCHITECTURE.md für die bereits
+    // bestehende, bekannte Einschränkung, dass eine so verlassene
+    // Live-Partie im Status "inProgress" verbleibt.
     return Scaffold(
       body: SafeArea(
         child: _LifeGrid(
@@ -253,6 +258,22 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
           ),
           child: Row(
             children: [
+              // Zurück-Pfeil neben der Uhr (Nutzerwunsch) - verlässt den
+              // Screen wie die System-Zurück-Geste, das Tracking läuft im
+              // Hintergrund unverändert weiter (siehe dispose(): hebt nur
+              // Querformat-Sperre/Wakelock auf, die laufende Partie in der
+              // DB bleibt unberührt).
+              IconButton(
+                onPressed: () => Navigator.of(context).maybePop(),
+                icon: const Icon(Icons.arrow_back_ios_new),
+                iconSize: 18,
+                tooltip: 'Zurück',
+                color: scheme.onSurfaceVariant,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 14),
               Icon(
                 Icons.timer_outlined,
                 size: 18,

@@ -305,12 +305,10 @@ angezeigt, die Spieler setzen sie selbst manuell am Tisch um (z. B.
     "Bekannte Einschränkung: keine Datenbank-Migration" unten einen
     kompletten App-Daten-Reset erzwingen, den dieses leichtgewichtige
     Zusatzfeature nicht rechtfertigt).
-  - Mitgelieferte Vorbelegung (`SettingsRepository._defaultWheelTasks`)
-    1:1 aus den vom Nutzer selbst genannten Beispielen übernommen
-    (W: "Du erhältst ein Leben dazu", U: "Du hast nach deinem Zug
-    einen weiteren Zug", B: "Jeder Spieler verliert ein Leben", R:
-    "Füge jedem Gegner einen Schaden zu", G: "Jeder bekommt ein
-    generisches Mana") - sofort nutzbar, frei überschreibbar.
+  - Mitgelieferte Vorbelegung
+    (`SettingsRepository._defaultWheelTasksByStage`) - sofort nutzbar,
+    frei überschreibbar; die konkreten Standardtexte je Stufe sind
+    thematisch abgestuft, siehe "Eskalations-Stufen" unten.
   - `WheelTasksScreen`: eine Karte je Farbe (Reihenfolge `wubrgOrder`),
     Antippen öffnet `WheelTaskEditorSheet` (Bottom Sheet) mit
     Freitextfeld. Erreichbar sowohl über "Weitere Optionen" auf dem
@@ -391,13 +389,65 @@ angezeigt, die Spieler setzen sie selbst manuell am Tisch um (z. B.
     zentral über eine `_wheelTaskPrefix(stage)`-Hilfsfunktion erzeugt
     statt einzelner Konstanten je Stufe). Migration nicht nötig:
     bereits gespeicherte Stufe-1/2/3-Aufgaben bleiben unter ihrem
-    bisherigen Schlüssel unverändert erhalten, die neuen Stufen 4/5
-    starten beim ersten Laden mit denselben Standardtexten wie alle
-    anderen Stufen (frei überschreibbar). `AppSettings.
+    bisherigen Schlüssel unverändert erhalten. `AppSettings.
     wheelTasksForStage(int stage)` liefert die passende Map (Werte
     außerhalb 1-5 fallen auf Stufe 1 zurück). `SettingsController.
     setWheelTask(color, text, {stage: 1})` schreibt gezielt in die Map
     der übergebenen Stufe.
+  - **Thematische Standard-Aufgaben je Stufe** (Nutzerwunsch: die
+    fünf Stufen-Vorbelegungen komplett neu definiert, als "Runde 1"
+    bis "Runde 5", jeweils "sortiert nach
+    Grün-Weiß-Blau-Rot-Schwarz"): `SettingsRepository.
+    _defaultWheelTasksByStage` (`Map<int, Map<String,String>>`) ersetzt
+    die bisherige, für alle Stufen gleiche `_defaultWheelTasks`-
+    Konstante durch fünf eigene Text-Sets, eines je Stufe, in
+    aufsteigender Eskalation:
+    - Stufe 1: G "Free Rampant Growth", W "Ziehe eine Karte", U "Jeder
+      Spieler Scry 1", R "Verliere drei Leben", B "Wirf eine Karte ab".
+    - Stufe 2: G "Free Counter Spell", W "Erzeuge zwei Treasures", U
+      "Jeder zieht eine Karte", R "Opfere ein Permanent", B "Verliere
+      fünf Leben".
+    - Stufe 3: G "Free Generous Gift", W "Ziehe Zwei Karten", U "Zwei
+      Treasures für jeden", R "Verschenke ein Permanent", B "Verliere
+      zehn Leben".
+    - Stufe 4: G "8/8 Trampel, Haste Dino Token", W "Free Teferi's
+      Protection", U "Jeder zieht zwei Karten", R "Nur ein Spell
+      dieser Turn", B "Drei Permanente opfern".
+    - Stufe 5: G "Free Demonic Tutor", W "Lebenspunkte tauschen", U
+      "Oberste Karte der Bibliothek spielen", R "Tausch mit
+      niedrigster Lebenspunkt", B "Den eigenen Zug überspringen".
+
+    `_loadWheelTasks` schlägt den Default jetzt je Stufe in dieser Map
+    nach (Fallback auf Stufe 1 bei ungültiger Stufe) statt in einer
+    einzigen gemeinsamen Konstante. Wirkt sich NUR auf Farbe/Stufe-
+    Kombinationen aus, die der Nutzer noch nicht manuell über
+    `WheelTasksScreen` überschrieben hat - bereits gespeicherte
+    Anpassungen bleiben unverändert bestehen
+    (`prefs.getString(...) ?? default`).
+  - **Bugfix: alte Vorbelegung "eingefroren" statt ersetzt** (Nutzer-
+    Feedback direkt nach der obigen Umstellung: "Mir werden die neuen
+    Texte ... jedoch nicht angezeigt. Stattdessen sehe ich die alten
+    Texte."): Ursache war, dass [save] immer den kompletten
+    `AppSettings`-Snapshot inklusive ALLER 5 Aufgaben-Maps persistiert
+    - nicht nur die eine gerade geänderte Farbe/Stufe. Da diese Maps
+    beim vorherigen `load()` bereits mit dem (damals noch
+    gemeinsamen) alten Default aufgefüllt worden waren, hat jeder noch
+    so kleine Settings-Schreibvorgang (z. B. Wheel of Fortune ein-/
+    ausschalten) diesen alten Platzhaltertext unbeabsichtigt fest unter
+    dem jeweiligen SharedPreferences-Schlüssel "eingefroren" - obwohl
+    ihn der Nutzer nie bewusst gesetzt hatte. Die neue Default-Map kam
+    dadurch nie zum Tragen, weil `_loadWheelTasks` einen vorhandenen
+    (wenn auch nur zufällig alten) gespeicherten Wert immer bevorzugt.
+    Fix: `SettingsRepository._legacySharedDefaults` hält die alten,
+    stufenübergreifend geteilten Platzhaltertexte je Farbe fest; die
+    neue Hilfsfunktion `_resolveSavedTask` behandelt einen
+    gespeicherten Wert, der exakt einem dieser alten Texte entspricht,
+    beim Laden wie "nicht gesetzt" und liefert stattdessen den neuen,
+    stufenspezifischen Default. Kein Reset der App-Daten nötig - der
+    Fix greift beim nächsten `load()` (App-Neustart) automatisch;
+    echte, vom Nutzer bewusst eingetragene Aufgabentexte bleiben davon
+    unberührt, außer sie entsprächen zufällig exakt einem der alten
+    Platzhaltertexte.
   - **`WheelTasksScreen`**: `TabBar`/`TabBarView` mit jetzt 5 Reitern
     ("Stufe 1".."Stufe 5", `DefaultTabController`, `TabBar` zusätzlich
     `isScrollable: true` gesetzt, damit alle 5 Reiter-Labels auf
@@ -2842,6 +2892,27 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
   (ungenutzt) - `widget.mode` selbst wird an anderer Stelle in der
   Datei weiterhin für die Team-/Erzfeind-Logik gebraucht und blieb
   daher erhalten.
+
+- **`LiveGameScreen`: expliziter Zurück-Pfeil neben der Uhr**
+  (Nutzerwunsch, als Folge-Anfrage zum obigen AppBar-Entfernen: "Setze
+  beim Live Tracking Screen neben die Uhr einen Backtick Pfeil, damit
+  man diesen Screen verlassen kann. Das Tracking läuft im Hintergrund
+  ja weiter."): der oben begründete Verzicht auf einen SCHWEBENDEN
+  Ersatz-Button über dem `_LifeGrid` gilt unverändert (Überlappungs-
+  Risiko mit den Tipp-Flächen bleibt). Die untere Leiste
+  (`bottomNavigationBar`, Timer-Anzeige + "Rad drehen"/"Partie
+  beenden") ist davon aber nicht betroffen - dort ist fester,
+  Tipp-Flächen-freier Platz reserviert. Ein `IconButton`
+  (`Icons.arrow_back_ios_new`, kompakt via `visualDensity`/
+  `constraints: BoxConstraints()`) sitzt jetzt direkt links neben dem
+  Timer-Icon/der Laufzeit-Anzeige und ruft beim Antippen
+  `Navigator.of(context).maybePop()` auf - funktional identisch zur
+  bereits vorhandenen System-Zurück-Geste/-Taste, nur als sichtbarer
+  In-App-Button. Das Verlassen läuft über `dispose()` (hebt nur die
+  Querformat-Sperre und den Wakelock wieder auf) - die laufende
+  Partie in der Datenbank bleibt unberührt und läuft im Status
+  `inProgress` im Hintergrund weiter (siehe "Bekannte Einschränkung"
+  oben - unverändert durch diesen Fix).
 
 - **`_LifeTile`: +/- horizontal statt vertikal um die
   Lebenspunkteanzeige** (Nutzerwunsch: "das + und - ... sollen rechts
