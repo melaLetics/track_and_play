@@ -404,9 +404,23 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Neue Partie')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+      // SafeArea(top: false, ...) - Bugreport: auf manchen Android-
+      // Telefonen (Geräte-Navigationsleiste - Gesten-Balken oder
+      // 3-Tasten-Leiste am unteren Bildschirmrand, je nach System-UI-
+      // Modus) wurde der untere Teil des Screens, insbesondere der
+      // abschließende "Manuell speichern"-/"Live-Erfassung starten"-
+      // Button, davon verdeckt: eine reine `ListView` mit fixem
+      // `padding: EdgeInsets.all(16)` berücksichtigt die System-
+      // Navigationsleiste NICHT automatisch (das würde nur bei einer
+      // `bottomNavigationBar` geschehen, siehe LiveGameScreen). `top:
+      // false`, weil die AppBar den oberen Safe-Area-Bereich (Status-
+      // Leiste/Notch) bereits selbst berücksichtigt - ein zusätzliches
+      // Top-Inset hier würde nur unnötigen doppelten Abstand erzeugen.
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
           SegmentedButton<GameEntryMode>(
             segments: const [
               ButtonSegment(
@@ -628,7 +642,8 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
               icon: const Icon(Icons.play_arrow),
               label: const Text('Live-Erfassung starten'),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }

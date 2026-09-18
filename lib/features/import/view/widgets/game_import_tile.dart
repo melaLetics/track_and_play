@@ -113,6 +113,23 @@ class _ParticipantRow extends ConsumerWidget {
         participant.playerName ?? participant.anonymousLabel ?? 'Unbekannt';
     final colorLabel =
         participant.colorIdentity.isEmpty ? 'farblos' : participant.colorIdentity;
+    // Nutzer-Bugreport: "beim Export einer Partie via QR Code ...
+    // fehlten die Informationen zu den Decks" - der transmittierte
+    // Deck-NAME (participant.deckName) wurde bisher nirgends
+    // angezeigt, obwohl er im Bundle längst enthalten war (siehe
+    // export_bundle.dart/ExportService). Ohne diese Zeile hatte der
+    // Nutzer beim Import keine Chance zu sehen, welches Deck laut
+    // Export gespielt wurde. Seit dem Folge-Bugfix in
+    // ImportService.performImport (deckIdByKey wird mit dem
+    // bestehenden lokalen Deck-Bestand vorbelegt) wird ein bereits
+    // lokal vorhandenes Deck automatisch zugeordnet, OHNE dass der
+    // Nutzer hier überhaupt eingreifen muss - diese Zeile bleibt aber
+    // in jedem Fall nützlich (zeigt den Namen auch bei erfolgreicher
+    // Auto-Zuordnung zur Bestätigung an, und ist die einzige
+    // verbliebene Information, falls wirklich kein lokales Deck mit
+    // passendem Schlüssel existiert).
+    final deckName = participant.deckName;
+    final deckOwnerName = participant.deckOwnerName;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -120,6 +137,18 @@ class _ParticipantRow extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('$label ($colorLabel)', style: Theme.of(context).textTheme.bodyMedium),
+          if (deckName != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                deckOwnerName != null
+                    ? 'Laut Export gespielt: $deckName (verliehen von $deckOwnerName)'
+                    : 'Laut Export gespielt: $deckName',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontStyle: FontStyle.italic,
+                    ),
+              ),
+            ),
           const SizedBox(height: 4),
           selfAsync.when(
             loading: () => const SizedBox.shrink(),

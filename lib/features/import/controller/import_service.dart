@@ -278,7 +278,19 @@ class ImportService {
               '${d.name.toLowerCase()}': d.id,
       };
 
-      final deckIdByKey = <String, int>{};
+      // Bugfix (Nutzer-Feedback nach dem QR-Deck-Bugfix: "Beim Import
+      // wird stets behauptet, dass das Deck nicht zugeordnet werden
+      // könne. Sowohl Spieler als auch Deck sind angelegt."):
+      // deckIdByKey MUSS - genau wie playerIdByName oben - mit dem
+      // bereits vorhandenen lokalen Bestand vorbelegt werden, sonst
+      // kann ein Partie-Teilnehmer NIE einem bereits existierenden
+      // Deck zugeordnet werden, das nicht zufällig auch Teil DIESES
+      // Bundles ist (z. B. jeder reine Partie-QR-Import, siehe
+      // buildGameQrBundle - dessen bundle.decks ist immer leer).
+      // Frisch in diesem Bundle importierte/gemergte Decks
+      // überschreiben unten weiterhin ihren jeweiligen Schlüssel
+      // ("frischester Treffer gewinnt", analog zu playerIdByName).
+      final deckIdByKey = <String, int>{...existingDeckIdByKey};
       var decksImported = 0;
       var decksMerged = 0;
       for (final i in selection.selectedDeckIndexes) {
@@ -526,7 +538,63 @@ class ImportService {
                       '(Spieler nicht importiert/gefunden).',
                 ),
               );
+            } else if (pe.deckName != null && deckId == null) {
+              // Nutzer-Bugreport: "beim Export einer Partie via QR Code
+              // ... fehlten die Informationen zu den Decks." deckIdByKey
+              // ist jetzt (Folge-Bugfix, siehe oben bei dessen
+              // Initialisierung) mit dem GESAMTEN bereits vorhandenen
+              // lokalen Deck-Bestand vorbelegt, nicht mehr nur mit
+              // Decks, die zufällig auch Teil DIESES Bundles sind -
+              // ein Partie-Teilnehmer wird also auch dann korrekt
+              // zugeordnet, wenn Spieler UND Deck beim Import bereits
+              // lokal existieren. Dieser Zweig hier greift folglich nur
+              // noch, wenn wirklich KEIN lokales Deck mit passendem
+              // Schlüssel (Besitzer+Name, case-insensitiv) existiert -
+              // z. B. weil das Deck auf dem exportierenden Gerät anders
+              // heißt/einem anderen Besitzer zugeordnet ist, oder
+              // schlicht noch nie importiert wurde. Der Deck-NAME
+              // (pe.deckName) ist dafür immerhin in der Vorschau
+              // sichtbar (siehe GameImportTile). Die Farbidentität wird
+              // trotzdem nicht verloren - siehe den allgemeinen
+              // Fallback direkt unten vor resolved.add (Nutzerwunsch:
+              // "Sollte ein Deck nicht gefunden werden, dann sollte
+              // zumindest die Farbidentität des Decks anstelle der
+              // Deckinformation stehen.").
+              warnings.add(
+                ImportWarning(
+                  category: ImportWarningCategory.deck,
+                  message: 'Deck "${pe.deckName}" von "${pe.playerName}" in '
+                      'Partie vom ${_formatDate(ge.playedAt)} konnte keinem '
+                      'lokalen Deck zugeordnet werden - stattdessen wurde '
+                      'nur die Farbidentität übernommen. Bitte bei Bedarf '
+                      'oben manuell zuordnen.',
+                ),
+              );
             }
+          }
+
+          // Nutzerwunsch: "Sollte ein Deck nicht gefunden werden, dann
+          // sollte zumindest die Farbidentität des Decks anstelle der
+          // Deckinformation stehen." Greift für JEDEN Fall, in dem am
+          // Ende kein deckId verknüpft ist und noch keine Farbe gesetzt
+          // wurde (weder über den "Spieler nicht gefunden"-Zweig noch
+          // über "anonym bleiben" oben) - deckt also sowohl die
+          // automatische Zuordnung ohne Treffer als auch eine manuelle
+          // Override-Zuordnung ohne gewähltes Deck ("Kein Deck angeben"
+          // im _DeckPicker) ab. pe.colorIdentity wird laut
+          // export_bundle.dart IMMER mitgeliefert (bei bekannten
+          // Teilnehmern vom Quell-Deck übernommen). Kein neues
+          // Datenbankfeld nötig: GameParticipantView._toParticipantView
+          // (games_repository.dart) liest anonymousColorIdentity
+          // ohnehin schon unabhängig von playerId/isAnonymous als
+          // generischen "kein verknüpftes Deck"-Fallback
+          // (`deck?.colorIdentity ?? participant.anonymousColorIdentity
+          // ?? ''`) - dasselbe Feld war bisher nur beim SCHREIBEN
+          // fälschlich auf anonyme Teilnehmer beschränkt.
+          if (deckId == null &&
+              anonymousColorIdentity == null &&
+              pe.colorIdentity.isNotEmpty) {
+            anonymousColorIdentity = pe.colorIdentity;
           }
 
           resolved.add((
@@ -574,8 +642,26 @@ class ImportService {
                   deckId: Value(r.deckId),
                   anonymousLabel:
                       Value(r.playerId == null ? r.anonymousLabel : null),
+                  // Nutzerwunsch: "Sollte ein Deck nicht gefunden
+                  // werden, dann sollte zumindest die Farbidentität
+                  // des Decks anstelle der Deckinformation stehen." -
+                  // anders als anonymousLabel (das nur für einen
+                  // wirklich anonymen Teilnehmer Sinn ergibt, ein
+                  // bekannter Teilnehmer hat ja bereits playerId/Namen)
+                  // wird dieses Feld jetzt an r.deckId statt an
+                  // r.playerId geknüpft: es ist der generische
+                  // "kein verknüpftes Deck"-Fallback, den
+                  // GameParticipantView._toParticipantView
+                  // (games_repository.dart) beim Lesen ohnehin schon
+                  // unabhängig davon konsultiert, ob der Teilnehmer
+                  // anonym oder bekannt ist. r.anonymousColorIdentity
+                  // ist oben (siehe deckId==null-Fallback vor
+                  // resolved.add) bereits so berechnet, dass es nur
+                  // dann einen Wert trägt, wenn kein Deck verknüpft
+                  // ist - die deckId-Prüfung hier ist daher primär zur
+                  // Absicherung/Dokumentation der Absicht.
                   anonymousColorIdentity: Value(
-                      r.playerId == null ? r.anonymousColorIdentity : null),
+                      r.deckId == null ? r.anonymousColorIdentity : null),
                   isWinner: Value(r.isWinner),
                   team: Value(r.team),
                   startingLife: Value(r.startingLife),

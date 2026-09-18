@@ -14,10 +14,19 @@ class ScoreGauge extends StatelessWidget {
   final String label;
   final double size;
 
+  /// Optionaler Style für die große Zahl in der Mitte - Default
+  /// bleibt unverändert (`textTheme.displaySmall`, wie bisher überall
+  /// genutzt, siehe StatsScreen). Vom `EloScoreCard` auf dem
+  /// Home-Dashboard genutzt, um dort testweise/gezielt
+  /// `AppTheme.statNumberStyle` (IBM Plex Mono, für Kennzahlen
+  /// vorgesehen) einzusetzen, ohne den Stats-Tab mit zu verändern.
+  final TextStyle? scoreTextStyle;
+
   const ScoreGauge({
     required this.score,
     required this.label,
     this.size = 200,
+    this.scoreTextStyle,
     super.key,
   });
 
@@ -43,10 +52,11 @@ class ScoreGauge extends StatelessWidget {
               children: [
                 Text(
                   score.toString(),
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: scoreTextStyle ??
+                      Theme.of(context).textTheme.displaySmall?.copyWith(
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
                 ),
                 const SizedBox(height: 4),
                 Text(

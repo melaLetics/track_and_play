@@ -3001,6 +3001,267 @@ Noch zu bauen (in dieser Reihenfolge sinnvoll):
     erweitert (`onSelected` unterscheidet per `is TableSide`/`is int`,
     ob eine Seite gewählt oder ein Tausch-Ziel-Index angetippt wurde).
 
+- **`GameSetupScreen`: unterer Screen-Rand von Android-Navigationsleiste
+  verdeckt** (Nutzer-Bugreport: "Beim Einstellen einer Partie, die man
+  live tracken möchte, wird der untere Teil des Screens ggf. von den
+  Android Telefonen nicht angezeigt, die dort ihre Navigationsleiste
+  haben"). Ursache: `body` bestand aus einer reinen `ListView` mit
+  fixem `padding: EdgeInsets.all(16)`, ohne `SafeArea` - dadurch wurde
+  die System-Navigationsleiste (Gesten-Balken oder 3-Tasten-Leiste am
+  unteren Bildschirmrand, je nach Android-Gerät/System-UI-Modus) nicht
+  berücksichtigt, sodass der abschließende "Manuell speichern"-/
+  "Live-Erfassung starten"-Button teils dahinter verschwand. Scaffold
+  reserviert diesen Bereich nur automatisch, wenn eine
+  `bottomNavigationBar` existiert (wie bei `LiveGameScreen`) - bei
+  einem einfachen `ListView`-`body` passiert das nicht von selbst.
+  Fix: `body` jetzt `SafeArea(top: false, child: ListView(...))` -
+  `top: false`, weil die `AppBar` den oberen Safe-Area-Bereich
+  (Status-Leiste/Notch) bereits selbst berücksichtigt und ein
+  zusätzliches Top-Inset nur unnötigen doppelten Abstand erzeugen
+  würde.
+
+- **Home-Dashboard: Player-Score nach oben, stärker hervorgehoben**
+  (Nutzerwunsch: "Ich hätte gerne den Score weiter oben. Diesen auch
+  gerne auf eine Card setzen, so dass er mehr gehighlightet wird.
+  Darunter die Erinnerung, wie lange schon die letzte Partie her ist,
+  dann der Random Deck Generator."): `HomeScreen.build` ordnet die
+  Dashboard-Karten jetzt in der Reihenfolge `EloScoreCard` →
+  `LastGameReminderCard` → `RandomDeckCard` → `LastAchievementsCard`
+  an (vorher: Erinnerung → Random Deck → Score → Erfolge).
+  `EloScoreCard` war technisch bereits eine `Card` - "mehr
+  gehighlightet" wurde daher als optische Abhebung von den übrigen,
+  schlicht gestalteten Standard-Cards umgesetzt statt als reine
+  Card-Umwandlung. Erste Umsetzung (goldener `BorderSide` + flache
+  `Color.alphaBlend`-Tönung + leicht erhöhte `elevation`) war dem
+  Nutzer beim Gegenchecken noch zu schlicht (siehe direkt folgender
+  Punkt für die überarbeitete Fassung).
+
+- **`EloScoreCard`: edleres Design (Nachbesserung)** (Nutzerwunsch:
+  "Die Karte mit dem Player Score gefällt mir noch nicht so richtig.
+  Versuche ein etwas edleres Design."): die einfache `Card` mit
+  `BorderSide` wurde durch eine "Vault-Plakette" im Look des
+  "Vault & Foil"-Themes ersetzt:
+  - Gold-Rahmen als echter FARBVERLAUF statt einfarbiger Linie -
+    `BorderSide` kann keinen Gradient zeichnen, daher stattdessen ein
+    äußerer `Container` mit Gradient-`BoxDecoration` und 1,4px
+    Padding als "Rahmendicke", der einen inneren `Container` mit dem
+    eigentlichen Karteninhalt umschließt (`Card` selbst dafür durch
+    zwei verschachtelte `Container` ersetzt).
+  - Inhalts-Hintergrund ein sanfter vertikaler Verlauf
+    (`surfaceContainerHigh` → `surface`) statt einer flachen Fläche,
+    für mehr Tiefe.
+  - Warmer Gold-Schimmer als weicher `BoxShadow` (großer
+    `blurRadius`, negativer `spreadRadius`, damit er nicht hart
+    wirkt) statt des Standard-Material-Elevation-Schlagschattens.
+  - Titel in Kapitälchen-Anmutung (Großbuchstaben, erhöhtes
+    `letterSpacing`, Cinzel-Schrift über `textTheme.titleLarge`, die
+    laut app_theme.dart bereits app-weit Cinzel führt) mit dünner
+    Gold-Trennlinie darunter - wirkt wie eine gravierte Plakette statt
+    einer normalen Karten-Überschrift.
+  - Score-Zahl über einen neuen optionalen `ScoreGauge.
+    scoreTextStyle`-Parameter (Default `null` → unverändertes
+    bisheriges Verhalten, siehe `ScoreGauge`) auf `AppTheme.
+    statNumberStyle` (IBM Plex Mono, tabellarische Ziffern)
+    umgestellt - genau der Zweck, für den dieser Style laut seiner
+    eigenen Doku ursprünglich vorgesehen, aber noch nirgends eingebaut
+    war (siehe app_theme.dart). Der zweite `ScoreGauge`-Nutzer
+    (`StatsScreen`) bleibt unberührt, da der Parameter dort weiterhin
+    weggelassen wird.
+
+- **Home-Dashboard: "Weitere Optionen"-Karte in zwei Karten
+  aufgeteilt** (Nutzerwunsch: "Splitte weitere Optionen auf in
+  'Schnellzugriff' und weitere Optionen mit den beiden Togglern."):
+  die bisherige, einzelne `_QuickLinksCard` (Navigations-Links UND die
+  beiden Ein-/Aus-Schalter untereinander in einer Karte, siehe oben
+  "Bekannte Fixes") wurde in zwei eigenständige Karten
+  aufgeteilt:
+  - `_QuickAccessCard` ("Schnellzugriff"): nur noch die reinen
+    Navigations-`ListTile`s (Gruppen verwalten/Wheel of Fortune
+    verwalten - beide weiterhin nur bei aktiviertem jeweiligem
+    Feature sichtbar/Daten exportieren/Daten importieren).
+  - `_MoreOptionsCard` ("Weitere Optionen"): nur noch die beiden
+    `SwitchListTile`s ("Mitspieler tracken", "Wheel of Fortune").
+  Beide Karten lesen weiterhin denselben
+  `settingsControllerProvider`/dieselben Werte
+  (`trackOtherPlayers`/`wheelOfFortuneEnabled`) - rein UI-seitige
+  Aufteilung, keine Verhaltensänderung der einzelnen Einträge. Die
+  private `_QuickLinkItem`-Hilfsklasse bleibt unverändert von
+  `_QuickAccessCard` genutzt.
+
+- **`_MoreOptionsCard`: aufklappbar statt permanent sichtbar**
+  (Nutzerwunsch: "weitere Optionen sollte aufklappbar sein, damit die
+  Einstellungen nur bei Bedarf sichtbar sind"): der starre
+  `Column`-Header wurde durch ein `ExpansionTile` ersetzt (`Card`
+  bekommt zusätzlich `clipBehavior: Clip.antiAlias`, damit dessen beim
+  Aufklappen leicht andere Hintergrund-/Rahmendarstellung nicht über
+  die abgerundeten Karten-Ecken hinausragt). Die beiden
+  `SwitchListTile`s ("Mitspieler tracken", "Wheel of Fortune") sind
+  jetzt `ExpansionTile.children` und dadurch standardmäßig
+  eingeklappt/unsichtbar (`initiallyExpanded` bewusst nicht gesetzt,
+  Default `false`) - erst ein Antippen der "Weitere Optionen"-
+  Kopfzeile blendet sie ein. Rein UI-seitig: Werte/Verhalten der
+  beiden Schalter selbst sind unverändert.
+
+## Bugfix: Deck-Informationen beim QR-Partie-Export "verschwanden"
+
+Nutzer-Bugreport: "Beim Export einer Partie via QR Code werden zwar
+Spieler, Startposition, Platzierung, Firstblood und Dauer übermittelt
+- aber es fehlten die Informationen zu den Decks."
+
+**Ursache (kein Übertragungsfehler, sondern zwei kombinierte
+Darstellungs-/Auswertungs-Lücken):** `ExportService._toGameExport`
+befüllt `GameParticipantExport.deckName`/`.deckOwnerName`/
+`.colorIdentity` für jeden Teilnehmer schon lange korrekt, und
+`buildGameQrBundle` überträgt das auch unverändert im QR-JSON - die
+Daten kamen also tatsächlich an. Zwei Stellen haben sie aber
+unsichtbar gemacht:
+
+1. **`GameImportTile._ParticipantRow` zeigte `deckName` nirgends an**
+   - nur Spielername und Farbidentität waren in der Import-Vorschau
+   sichtbar. Der Nutzer hatte dadurch beim Import gar keine Chance zu
+   sehen, welches Deck ein Teilnehmer laut Export gespielt hatte -
+   unabhängig davon, ob es sich um einen QR- oder Datei-Import
+   handelte.
+2. **`ImportService.performImport`: `deckIdByKey` bleibt bei einem
+   QR-Partie-Export IMMER leer.** Diese Zuordnungstabelle wird
+   ausschließlich aus `bundle.decks` (vollständige `DeckExport`-
+   Einträge) befüllt - `buildGameQrBundle` enthält aber bewusst KEINE
+   solchen Einträge (siehe dessen eigene Doku: kleiner QR-Code, die
+   Farbidentität pro Teilnehmer soll für die "on the fly"-Zuordnung
+   reichen). Der übertragene `deckName` diente dadurch nur als
+   Lookup-Schlüssel, der bei einem reinen QR-Partie-Export nie treffen
+   konnte - und weil `GameParticipantsCompanion.insert` das Feld
+   `anonymousColorIdentity` bewusst NUR für anonyme Teilnehmer setzt
+   (nicht für einen erfolgreich aufgelösten BEKANNTEN Teilnehmer, bei
+   dem stattdessen `deckId` die einzige Quelle für die Farbe ist),
+   ging die komplette Deck-Information für bekannte Teilnehmer ohne
+   manuelle Zuordnung kommentarlos verloren.
+
+**Fix (bewusst OHNE die grundsätzliche Architektur-Entscheidung "QR-
+Partie-Export bleibt klein, keine vollständigen Deck-Datensätze" zu
+kippen - die für einen einzelnen QR-Code sinnvoll bleibt):**
+- `GameImportTile._ParticipantRow` zeigt jetzt zusätzlich eine Zeile
+  "Laut Export gespielt: `<deckName>`" (bzw. mit
+  "(verliehen von `<deckOwnerName>`)" bei Deck-Verleih) an - die
+  bereits vorhandene, manuelle Deck-Zuordnung über `ParticipantOverride`/
+  `_DeckPicker` (eigenes Deck per Farb-Vorschlag wählen) existierte
+  schon, der Nutzer wusste beim Entscheiden aber bisher nicht, welches
+  Deck ursprünglich gespielt wurde.
+- `ImportService.performImport` gibt jetzt einen neuen
+  `ImportWarning` (Kategorie `deck`) aus, wenn ein Teilnehmer erfolgreich
+  einem bekannten lokalen Spieler zugeordnet werden konnte, aber
+  `pe.deckName` gesetzt UND keine automatische `deckId`-Zuordnung
+  möglich war: "Deck '...' von '...' ... konnte keinem lokalen Deck
+  zugeordnet werden und wurde NICHT übernommen - bitte bei Bedarf oben
+  manuell zuordnen." Der Nutzer erfährt dadurch beim Import aktiv,
+  dass/wo Deck-Informationen sonst kommentarlos verloren gegangen
+  wären, statt es erst hinterher in der importierten Partie zu
+  vermissen.
+
+Bewusst NICHT umgesetzt: automatisches Anlegen eines neuen, vom
+Nutzer nicht bestätigten Deck-Datensatzes allein aus `deckName`/
+`colorIdentity` (ohne Bracket/Build-Typ/Commander etc., da diese
+Felder im schlanken QR-Partie-Bundle gar nicht enthalten sind) - das
+würde unaufgefordert die Deck-Bibliothek des importierenden Nutzers
+befüllen. Die bestehende manuelle Zuordnung über `_DeckPicker` bleibt
+der vorgesehene Weg, jetzt aber informiert statt blind.
+
+### Nachbesserung: eigentliche Ursache war tiefer (deckIdByKey nie mit Bestand vorbelegt)
+
+Nutzer-Test des obigen Fixes: "Beim Import wird stets behauptet, dass
+das Deck nicht zugeordnet werden könne. Sowohl Spieler als auch Deck
+sind angelegt." Zeigt: die im vorherigen Abschnitt beschriebene
+Erklärung ("QR-Partie-Export enthält bewusst keine Deck-Einträge,
+daher IMMER Warnung") war nur die halbe Wahrheit und traf den
+eigentlichen Kern nicht - der Fehler bestand unabhängig davon, ob
+Deck-Einträge im Bundle waren.
+
+**Tatsächliche Ursache:** `ImportService.performImport` initialisiert
+`deckIdByKey` (die Zuordnungstabelle Besitzer+Name → lokale Deck-id,
+über die JEDE Teilnehmer-Deck-Zuordnung läuft) als LEERE Map und
+befüllt sie ausschließlich aus `bundle.decks` - also nur mit Decks,
+die Teil DIESES Imports sind. Im Unterschied dazu wird `playerIdByName`
+(dieselbe Rolle für Spieler) direkt beim Anlegen mit dem KOMPLETTEN
+bereits vorhandenen lokalen Spieler-Bestand vorbelegt (`for (final p
+in await db.select(db.players).get()) ...`) und erst DANACH von neu
+importierten Spielern überschrieben. Bei Decks fehlte genau dieser
+erste Schritt - ein bereits lokal vorhandenes, in einer früheren
+Sitzung angelegtes oder importiertes Deck wurde vom Zuordnungs-Lookup
+schlicht nie gefunden, komplett unabhängig vom QR- vs. Datei-Import
+und unabhängig davon, ob das aktuelle Bundle überhaupt Deck-Einträge
+mitbringt. `existingDeckIdByKey` (derselbe Schlüssel, aus dem
+kompletten lokalen Deck-Bestand berechnet) existierte im Code bereits
+- wurde aber ausschließlich für die "bestehendes Deck aktualisieren
+statt neu anlegen"-Entscheidung beim Deck-Import selbst verwendet,
+nie für die Teilnehmer-Zuordnung.
+
+**Fix:** `deckIdByKey` wird jetzt mit `existingDeckIdByKey` vorbelegt
+(`final deckIdByKey = <String, int>{...existingDeckIdByKey};`) -
+exakt dasselbe "erst mit Bestand vorbelegen, dann von frisch
+importierten/gemergten Einträgen überschreiben"-Muster wie bei
+`playerIdByName`. Ein Partie-Teilnehmer wird dadurch jetzt korrekt
+zugeordnet, sobald Spieler UND Deck lokal bereits existieren - egal
+ob per Datei- oder QR-Import, und egal ob das aktuelle Bundle eigene
+Deck-Einträge enthält. Der im vorherigen Abschnitt eingeführte
+Warnhinweis bleibt bestehen, greift jetzt aber nur noch im wirklich
+verbleibenden Fall: kein lokales Deck mit passendem Schlüssel
+gefunden (z. B. abweichender Deck-/Besitzername, oder das Deck wurde
+schlicht noch nie importiert).
+
+### Weitere Nachbesserung: Farbidentität als Fallback, wenn kein Deck gefunden wird
+
+Nutzerwunsch im Anschluss: "Sollte ein Deck nicht gefunden werden,
+dann sollte zumindest die Farbidentität des Decks anstelle der
+Deckinformation stehen." Bis dahin ging bei einem BEKANNTEN
+Teilnehmer (playerId aufgelöst), dessen Deck nicht zugeordnet werden
+konnte (bzw. bei einer manuellen Zuordnung ohne gewähltes Deck über
+"Kein Deck angeben" im `_DeckPicker`), nicht nur der Deck-Name
+verloren, sondern auch die im Bundle immer mitgelieferte
+`colorIdentity` - der Teilnehmer landete komplett ohne jede
+Farbinformation in der DB.
+
+**Warum das ohne Schema-Änderung ging:** `GameParticipantView.
+_toParticipantView` (games_repository.dart) liest die Farbe eines
+Teilnehmers schon lange als `deck?.colorIdentity ??
+participant.anonymousColorIdentity ?? ''` - also VÖLLIG unabhängig
+davon, ob der Teilnehmer anonym oder bekannt ist (`isAnonymous` ist
+ein separates reines Anzeige-Flag). `anonymousColorIdentity` war
+trotz seines Namens also im LESE-Pfad schon immer ein generischer
+"kein verknüpftes Deck"-Fallback - nur der SCHREIB-Pfad beim Import
+hat dieses Feld fälschlich zusätzlich auf `playerId == null`
+beschränkt (`GameParticipantsCompanion.insert`). `game_detail_screen.
+dart` nutzt genau diesen Fallback bereits in der Anzeige (`p.deckName
+?? (p.colorIdentity.isEmpty ? 'Kein Deck angegeben' :
+p.colorIdentity)`) - die Infrastruktur für "zeig wenigstens die Farbe"
+existierte also komplett, nur der Import hat den Wert nie eingetragen.
+
+**Fix in `ImportService.performImport`:**
+- Neuer allgemeiner Fallback direkt vor `resolved.add(...)`: bleibt
+  am Ende der Teilnehmer-Auflösung `deckId == null` UND wurde noch
+  keine `anonymousColorIdentity` gesetzt (weder über "Spieler nicht
+  gefunden" noch über "anonym bleiben"), wird die im Bundle
+  transportierte `pe.colorIdentity` übernommen. Deckt sowohl die
+  automatische Zuordnung ohne Treffer als auch eine manuelle
+  Override-Zuordnung ohne gewähltes Deck ab.
+- Die Schreibbedingung beim `GameParticipantsCompanion.insert` wurde
+  von `r.playerId == null ? r.anonymousColorIdentity : null` auf
+  `r.deckId == null ? r.anonymousColorIdentity : null` umgestellt -
+  das Feld wird jetzt an "kein verknüpftes Deck" statt an "anonymer
+  Teilnehmer" geknüpft, passend zum bereits bestehenden Lesepfad.
+  `anonymousLabel` bleibt bewusst weiterhin an `playerId == null`
+  gebunden - ein Label ergibt für einen bekannten Teilnehmer (der
+  längst einen Namen über `playerId` hat) keinen Sinn.
+- Die Warnmeldung bei nicht zuordenbarem Deck wurde entsprechend
+  angepasst: "... konnte keinem lokalen Deck zugeordnet werden -
+  stattdessen wurde nur die Farbidentität übernommen. Bitte bei
+  Bedarf oben manuell zuordnen."
+
+Ergebnis: ein Teilnehmer ohne zuordenbares Deck zeigt in
+`GameDetailScreen` & Co. jetzt die transportierte Farbidentität
+(z. B. "WUBRG") statt "Kein Deck angegeben" - ohne jede
+Datenbank-Schema-Änderung, da die komplette Lese-Infrastruktur dafür
+bereits vorhanden war.
+
 ## Untersuchter Verdachtsfall: Umlaute beim Export (nicht reproduzierbar)
 
 Nutzer-Bugreport: "Beim Export der Daten werden Umlaute nicht korrekt

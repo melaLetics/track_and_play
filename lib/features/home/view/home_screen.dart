@@ -83,11 +83,15 @@ class HomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 8),
+                    // Reihenfolge auf Nutzerwunsch: Score zuerst (und
+                    // stärker hervorgehoben, siehe EloScoreCard), danach
+                    // die Erinnerung "wie lange ist die letzte Partie
+                    // her", danach der Random-Deck-Generator.
+                    EloScoreCard(selfPlayerId: self.id),
+                    const SizedBox(height: 16),
                     LastGameReminderCard(selfPlayerId: self.id),
                     const SizedBox(height: 16),
                     RandomDeckCard(selfPlayerId: self.id),
-                    const SizedBox(height: 16),
-                    EloScoreCard(selfPlayerId: self.id),
                     const SizedBox(height: 16),
                     LastAchievementsCard(selfPlayerId: self.id),
                   ],
@@ -96,7 +100,19 @@ class HomeScreen extends ConsumerWidget {
               orElse: () => const SizedBox.shrink(),
             ),
             const SizedBox(height: 24),
-            const _QuickLinksCard(),
+            // Nutzerwunsch: die frühere gemeinsame "Weitere Optionen"-
+            // Karte (Navigations-Links + die beiden Ein-/Aus-Schalter
+            // untereinander in einer Karte) wurde in zwei eigene Karten
+            // aufgeteilt - "Schnellzugriff" für reine Navigation
+            // (springt sofort auf einen anderen Screen) und "Weitere
+            // Optionen" für die globalen Einstellungs-Schalter (ändert
+            // etwas direkt hier, ohne den Screen zu verlassen). Beide
+            // nutzen weiterhin dieselben Provider/Werte
+            // (trackOtherPlayers/wheelOfFortuneEnabled), nur auf zwei
+            // Widgets verteilt.
+            const _QuickAccessCard(),
+            const SizedBox(height: 16),
+            const _MoreOptionsCard(),
           ],
         ),
       ),
@@ -104,11 +120,13 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// Kompakte Karte "Weitere Optionen" (Export/Import/Gruppen-Verwaltung)
-/// unten auf dem Home-Dashboard - auf Nutzerwunsch anstelle von drei
-/// einzelnen breiten Buttons, siehe ARCHITECTURE.md "Bekannte Fixes".
-class _QuickLinksCard extends ConsumerWidget {
-  const _QuickLinksCard();
+/// "Schnellzugriff"-Karte: reine Navigations-Links (Export/Import/
+/// Gruppen-/Wheel-Verwaltung) - auf Nutzerwunsch abgetrennt von den
+/// Einstellungs-Schaltern in [_MoreOptionsCard] (siehe ARCHITECTURE.md
+/// "Bekannte Fixes" für die ursprüngliche gemeinsame Karte, die diese
+/// Aufteilung ersetzt).
+class _QuickAccessCard extends ConsumerWidget {
+  const _QuickAccessCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -154,7 +172,7 @@ class _QuickLinksCard extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: Text(
-              'Weitere Optionen',
+              'Schnellzugriff',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
@@ -171,6 +189,50 @@ class _QuickLinksCard extends ConsumerWidget {
               },
             ),
           ],
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Weitere Optionen"-Karte: die globalen Einstellungs-Schalter
+/// ("Mitspieler tracken", "Wheel of Fortune") - auf Nutzerwunsch
+/// abgetrennt von den reinen Navigations-Links in [_QuickAccessCard].
+/// Auf weiteren Nutzerwunsch ("weitere Optionen sollte aufklappbar
+/// sein, damit die Einstellungen nur bei Bedarf sichtbar sind") als
+/// [ExpansionTile] statt starrem Column-Header umgesetzt - dadurch
+/// bleiben die beiden Schalter standardmäßig eingeklappt
+/// (`initiallyExpanded` bewusst NICHT gesetzt, Default ist `false`)
+/// und werden erst nach Antippen der Kopfzeile sichtbar. Card bekommt
+/// `clipBehavior: Clip.antiAlias`, damit das eigene, beim Aufklappen
+/// leicht andere Hintergrund-/Rahmenverhalten von `ExpansionTile`
+/// nicht über die abgerundeten Karten-Ecken hinausragt.
+class _MoreOptionsCard extends ConsumerWidget {
+  const _MoreOptionsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(settingsControllerProvider);
+    final trackOtherPlayers = settingsAsync.maybeWhen(
+      data: (settings) => settings.trackOtherPlayers,
+      orElse: () => false,
+    );
+    final wheelOfFortuneEnabled = settingsAsync.maybeWhen(
+      data: (settings) => settings.wheelOfFortuneEnabled,
+      orElse: () => false,
+    );
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        leading: const Icon(Icons.tune),
+        title: Text(
+          'Weitere Optionen',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        childrenPadding: EdgeInsets.zero,
+        children: [
           const Divider(height: 1),
           // Nachgerüstete Einstellung (Nutzerfrage: der Setup-Wizard
           // verspricht "später jederzeit in den Einstellungen
@@ -197,7 +259,7 @@ class _QuickLinksCard extends ConsumerWidget {
           // Ein-/Aus-Schalter (siehe ARCHITECTURE.md) - nur bei
           // aktiviertem Schalter erscheint der "Rad drehen"-Button in
           // LiveGameScreen sowie die "Wheel of Fortune verwalten"-Karte
-          // oben.
+          // im Schnellzugriff oben.
           SwitchListTile(
             secondary: const Icon(Icons.casino_outlined),
             title: const Text('Wheel of Fortune'),
