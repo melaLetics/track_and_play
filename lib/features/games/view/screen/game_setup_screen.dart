@@ -9,7 +9,6 @@ import '../../controller/provider/games_repository_provider.dart';
 import '../../model/game_mode_labels.dart';
 import '../../model/game_participant_draft.dart';
 import '../../model/game_setup_validator.dart';
-import '../../model/live_participant.dart';
 import '../../model/table_seat_order.dart';
 import '../../model/table_side_labels.dart';
 import '../widgets/add_anonymous_participant_dialog.dart';
@@ -361,22 +360,20 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
       for (final p in _participants) p.copyWith(startingLife: _startingLife),
     ];
     final repo = ref.read(gamesRepositoryProvider);
-    final (gameId, participantIds) = await repo.startLiveGame(
+    final (gameId, _) = await repo.startLiveGame(
       mode: _mode,
       groupId: _groupId,
       participants: draftsWithLife,
     );
-    final liveParticipants = [
-      for (var i = 0; i < draftsWithLife.length; i++)
-        LiveParticipant(
-          gameParticipantId: participantIds[i],
-          displayName: draftsWithLife[i].displayName,
-          startingLife: _startingLife,
-          team: draftsWithLife[i].team,
-          startPosition: draftsWithLife[i].startPosition,
-          tableSide: draftsWithLife[i].tableSide,
-        ),
-    ];
+    // Nach dem Anlegen einmal frisch aus der DB laden statt die
+    // LiveParticipant-Liste hier manuell nachzubauen (Nutzerwunsch-
+    // Ergänzung Commander-Schaden): loadLiveParticipants joint bereits
+    // gegen Decks für commanderName/secondCommanderName (siehe
+    // games_repository.dart) - das hier zu duplizieren wäre
+    // fehleranfällig. Die frisch angelegten Teilnehmer haben noch
+    // keine LifeEvents, liefern also ohnehin exakt _startingLife
+    // zurück wie zuvor die manuelle Konstruktion.
+    final liveParticipants = await repo.loadLiveParticipants(gameId);
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(

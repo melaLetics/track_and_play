@@ -46,14 +46,18 @@ Arbeitssitzungen an diesem Projekt.
   (playerId, groupId).
 - **Decks**: `id, ownerPlayerId (FK Players), name, colorIdentity,
   commanderName, secondCommanderName, buildType, bracket, isProxy,
-  isTournamentLegal, deckLink, archived, createdAt`. Decks gehören immer
+  isTournamentLegal, deckLink, archetype, subthemes, archived,
+  createdAt`. Decks gehören immer
   einem bekannten Player, **nicht** einer Gruppe - welche Gruppe ein
   Deck gerade nutzt, ergibt sich aus den Partien, in denen es gespielt
   wird. `secondCommanderName` (Partner-/zweiter Commander),
   `buildType` (Enum precon/upgraded/homebrew), `bracket` (Power-Level,
   z. B. 1-5), `isProxy`, `isTournamentLegal` und `deckLink` wurden 1:1
   aus mtg_stats_tracker (`AppDeck`) übernommen, damit dort erfasste
-  Deck-Informationen nicht verloren gehen.
+  Deck-Informationen nicht verloren gehen. `archetype` (Enum
+  `DeckArchetype`, ~45 etablierte Werte) und `subthemes` (Freitext)
+  wurden neu ergänzt - siehe eigener Abschnitt "Deck-Archetypen und
+  Subthemes" weiter unten.
 - **Games**: `id, playedAt, mode (commander/competitiveCommander/
   twoHeadedGiant/archenemy), notes, groupId (FK Groups, nullable),
   createdAt`. `groupId` ist `null` für rein persönlich erfasste
@@ -108,6 +112,14 @@ Arbeitssitzungen an diesem Projekt.
   erster Eintrag mit `delta < 0` über alle Teilnehmer der Partie
   hinweg) sowie später ein Lebenspunkte-Verlaufsdiagramm für die
   Statistik.
+- **CommanderDamageEvents** (neu, nur für live erfasste Partien): `id,
+  gameParticipantId (FK GameParticipants, Empfänger),
+  sourceParticipantId (FK GameParticipants, Quelle), commanderSlot
+  (Enum primary/partner), occurredAt, delta,
+  resultingCommanderDamage`. Ein Eintrag pro Commander-Schaden-Änderung
+  - analog zu LifeEvents, erzeugt aber zusätzlich automatisch einen
+  passenden negativen LifeEvents-Eintrag (siehe "Commander-Schaden im
+  Live-Tracking" weiter unten).
 
 - **AppSettings** (lib/features/settings/, shared_preferences statt
   Drift-Table, da einzelner globaler Zustand):
@@ -3302,6 +3314,306 @@ Ausgangspunkt für eine erneute Diagnose):
   `mimeType: 'application/json'` statt des Standards
   "application/octet-stream" - risikolose, semantisch korrektere
   Ergänzung, die bei der Untersuchung ergänzt und beibehalten wurde.
+
+## Deck-Archetypen und Subthemes
+
+Nutzerwunsch: Decks sollen sich zusätzlich nach Spielstil/Strategie
+klassifizieren lassen ("Aristocrats", "Voltron", ...), angelehnt an
+die Theme-Taxonomie, die auch Moxfield fürs Theme-Browsing
+(moxfield.com/themes) verwendet - diese wiederum übernimmt die
+Tag-Liste von EDHREC (edhrec.com/tags/themes).
+
+**Warum kuratiert statt der vollen EDHREC-Liste**: Die tatsächliche
+EDHREC-Taxonomie umfasst über 300 Einträge - neben etablierten
+Archetypen auch sehr feingranulare Mechanik-Subthemes (z. B. Convoke,
+Kicker, Populate, Amass) sowie Companion- und sogar Scherz-/Un-Set-Tags
+(Dandan, Cid, Bobbleheads, Slime Against Humanity, ...). Für eine
+Einfachauswahl in einem Dropdown wäre das weder auffindbar noch
+sinnvoll pflegbar. Mit dem Nutzer abgestimmt: eine kuratierte Auswahl
+der ~45 im Commander-Umfeld etabliertesten Archetypen als neues Enum
+`DeckArchetype` (`lib/database/tables/decks_table.dart`), z. B. Aggro,
+Midrange, Control, Combo, Stax, Voltron, Aristocrats, Spellslinger,
+Reanimator, Tokens, Ramp, Landfall, Artifacts, Graveyard, Group Hug,
+Pillow Fort, Politics, Storm, Superfriends, Tribal, Hatebears, Monarch,
+cEDH usw. - vollständige Liste samt deutscher Anzeige-Namen in
+`lib/features/decks/model/deck_archetype_labels.dart`
+(`deckArchetypeLabels`). Optionale Einfachauswahl (`Decks.archetype`,
+nullable), analog zum bereits bestehenden `DeckBuildType`-Muster.
+
+**Subthemes als Freitext**: Für feinere/seltenere Einordnungen (genau
+die "restlichen" ~250 EDHREC-Mechanik-Tags, z. B. "Ninjutsu, Clones,
+Extra Turns") gibt es bewusst **kein** zweites Enum und keine
+Mehrfachauswahl-Relationstabelle, sondern ein einzelnes neues,
+optionales Freitext-Feld `Decks.subthemes` (TextColumn, nullable).
+Kommagetrennt als Anzeige-Konvention, aber nicht strukturell
+erzwungen/geparst - das hält die Umsetzung auf Aufwand einer normalen
+`bracket`/`deckLink`-Spalte (eine zusätzliche nullable Spalte plus
+ein `TextField` im Formular), ohne eine komplette Tag-Verwaltung
+(Erfassung, Umbenennung, Vorschläge, Mehrfachauswahl-UI, eigene
+Zwischentabelle) bauen zu müssen. Ließe sich bei Bedarf später zu
+einer strukturierten Mehrfachauswahl ausbauen, ohne die Spalte selbst
+zu verwerfen (bestehende Freitext-Werte blieben als Migrationsbasis
+erhalten).
+
+**Umgesetzt**:
+- `DeckArchetype`-Enum und die beiden neuen Spalten in
+  `decks_table.dart`.
+- Formular (`deck_form_dialog.dart`): Dropdown "Archetyp (optional)"
+  (alphabetisch nach Anzeige-Label sortiert, nicht in
+  Enum-Deklarationsreihenfolge - bei ~45 Einträgen sonst kaum
+  auffindbar) sowie `TextField` "Subthemes (optional)".
+- Anzeige (`player_detail_screen.dart`, Deck-Kachel-Untertitel):
+  Archetyp-Label und Subthemes-Text ergänzt, analog zu Bracket/Bauart.
+- `DecksRepository.createDeck`/`updateDeck`: neue optionale Parameter.
+- Export/Import-Rundreise (siehe auch Abschnitt "Export/Import"
+  weiter oben): `DeckExport` (`export_bundle.dart`) um `archetype`
+  (als String, analog zu `buildType`) und `subthemes` ergänzt,
+  `ExportService._toDeckExport` befüllt beide, `ImportService`
+  übernimmt sie sowohl beim Neuanlegen als auch beim Aktualisieren
+  eines bereits bestehenden Decks (`mergeDeckIndexes`-Pfad) und
+  `_deckFieldDiffs` weist Abweichungen im "Deck aktualisieren?"-Dialog
+  jetzt auch für Archetyp/Subthemes aus - damit geht diese neue
+  Information beim Teilen/Importieren eines Decks nicht denselben Weg
+  wie der frühere QR-Deck-Bug (siehe oben).
+
+**Offener manueller Schritt**: Wie jede Schema-Änderung (siehe
+"Bekannte Einschränkung: keine Datenbank-Migration" unten) muss der
+Nutzer einmalig `dart run build_runner build
+--delete-conflicting-outputs` ausführen und die App-Daten auf dem
+Testgerät löschen, bevor die beiden neuen Spalten nutzbar sind.
+
+**Nachtrag: Auswertung nach Archetyp im Stats-Screen** (Nutzerwunsch,
+kurz nach der ersten Umsetzung): `SelfGameStatsRow`
+(`games_repository.dart`) um `archetype` (`DeckArchetype?`, aus
+`deck?.archetype`) ergänzt, dazu `computeWinRateByArchetype`
+(`player_performance_stats.dart`, analog zu
+`computeWinRateByColorIdentity`) und ein neuer "Nach Archetyp"-Block
+im `StatsScreen`, zwischen "Nach Farbidentität" und "Nach
+Startposition" einsortiert. Bewusst **nicht** berücksichtigt: die
+freien Subthemes (`Decks.subthemes`) - der Nutzer wollte
+ausdrücklich nur die feste Archetyp-Auswahl in der Statistik sehen,
+Freitext eignet sich ohnehin nicht für eine sinnvolle Bucket-Bildung
+(keine feste Wertemenge, Tippfehler/unterschiedliche Schreibweisen
+würden künstlich viele Ein-Partien-Buckets erzeugen). Partien ohne
+Deck bzw. mit Deck ohne gesetzten Archetyp fallen wie bei der
+Farbidentitäts-Auswertung gesammelt unter "Kein Archetyp angegeben".
+Da hierbei keine neue Spalte hinzukommt (nur eine bereits vorhandene
+Spalte zusätzlich ausgewertet wird), ist dafür **kein** weiterer
+`build_runner`-Lauf/Datenlöschen nötig.
+
+**Nachtrag: Labels durchgehend Englisch** (Nutzerfeedback: der Mix aus
+deutschen Übersetzungen und englischen Fachbegriffen im Dropdown
+störte). `deckArchetypeLabels` (`deck_archetype_labels.dart`) wurde
+auf durchgehend englische Anzeige-Namen umgestellt (z. B. "Lifegain"
+statt "Lebenspunkte-Gewinn", "Lands Matter" statt "Ländereien-Fokus")
+- passend zur ohnehin überwiegend englischen Fachterminologie der
+Magic-Community. Reine Anzeige-Änderung, betrifft keine gespeicherten
+Werte (die Enum-Namen selbst waren immer schon Englisch) - kein
+`build_runner`/Datenlöschen nötig.
+
+**Nachtrag: bis zu drei Archetypen pro Deck** (Nutzerwunsch: "Oft
+sind Decks mehreren Archetypen zugeordnet"). Statt einer
+Mehrfachauswahl-Relationstabelle wurden zwei weitere nullable
+Enum-Spalten `Decks.secondArchetype`/`thirdArchetype` ergänzt (siehe
+decks_table.dart) - analog zur bereits bestehenden Abwägung bei
+`subthemes` (feste Obergrenze von drei -> drei einfache Spalten statt
+einer Relation). `DeckFormDialog` zeigt zunächst nur das erste
+Archetyp-Dropdown, ein "Weiteren Archetyp hinzufügen"-Button blendet
+bei Bedarf bis zu zwei weitere ein; ein einzelnes Feld wird einfach
+über dessen eigene "Keine Angabe"-Option wieder geleert (kein
+separater Entfernen-Button nötig). Beim Speichern werden die
+tatsächlich gesetzten Werte kompaktiert (keine Lücken, egal welches
+Dropdown geleert wurde) und dedupliziert (derselbe Archetyp lässt
+sich nicht mehrfach speichern).
+
+Betroffen: `DecksRepository.createDeck`/`updateDeck` (zwei neue
+optionale Parameter), Deck-Kachel-Anzeige (`player_detail_screen.dart`,
+neue Hilfsfunktion `_archetypeSummary` - kommagetrennte Liste aller
+gesetzten Archetypen), Export/Import-Rundreise (`DeckExport`,
+`ExportService`, `ImportService` inkl. `_deckFieldDiffs` - analog zum
+Vorgehen bei der ersten Archetyp-Einführung).
+
+**Auswirkung auf die "Nach Archetyp"-Statistik**:
+`SelfGameStatsRow.archetype` (einzelner Wert) wurde zu
+`SelfGameStatsRow.archetypes` (`List<DeckArchetype>`, aus allen drei
+Spalten). `computeWinRateByArchetype` zählt eine Partie jetzt in
+JEDEN Archetyp-Bucket, dem ihr Deck zugeordnet ist (wie eine
+Tag-Wolke) - bei einem Deck mit zwei oder drei Archetypen kann die
+Partie also in mehreren Buckets gleichzeitig auftauchen. Dadurch kann
+die Summe von `gamesPlayed` über alle Buckets hinweg die tatsächliche
+Gesamtzahl der Partien übersteigen - das ist bei Mehrfachzuordnung so
+gewollt, keine Inkonsistenz.
+
+Schema-Änderung (zwei neue Spalten) - wie immer: einmalig
+`dart run build_runner build --delete-conflicting-outputs` und
+App-Daten auf dem Testgerät löschen.
+
+## Commander-Schaden im Live-Tracking
+
+Nutzerwunsch: "Bekommt ein Spieler Commander Schaden, so soll dieser
+über ein Menü (irgendwo neben oder unter seiner Lebenspunktsanzeige)
+den Commander auswählen können, und dort den Schaden eintragen, den er
+erhalten hat. Der hier eingetragene Schaden wird dann automatisch vom
+Lebenspunktestand abgezogen." Hat ein Gegner Commander + Partner-
+Commander, sollen beide separat auswählbar sein. Damit wird die in der
+_LifeGrid-Klassendoku seit der ersten Live-Tracking-Version offen
+gelassene Lücke ("kein Schadens-Log, keine Kommandeur-Schaden-Matrix
+... können bei Bedarf später einzeln nachgezogen werden") jetzt
+geschlossen.
+
+**Neue Tabelle `CommanderDamageEvents`** (`commander_damage_events_
+table.dart`): `id, gameParticipantId (FK GameParticipants, Empfänger),
+sourceParticipantId (FK GameParticipants, Quelle), commanderSlot (Enum
+CommanderSlot: primary/partner), occurredAt, delta,
+resultingCommanderDamage`. Bewusst analog zu `LifeEvents` (Event-Log
+mit denormalisiertem laufenden Stand statt nur einer reinen Matrix-
+Tabelle) - dieselbe Begründung: macht einen künftigen Verlauf möglich,
+ohne alle deltas aufsummieren zu müssen. `sourceParticipantId`
+referenziert - anders als `Games.firstBloodParticipantId` - bewusst
+als ECHTE Drift-FK (kein Zyklus-Risiko, da `GameParticipants` nicht
+zurück auf `CommanderDamageEvents` verweist).
+
+**Automatischer Lebenspunkte-Abzug**: `GamesRepository.
+recordCommanderDamage` fügt in EINER Transaktion sowohl den
+`CommanderDamageEvents`-Eintrag als auch (über den bereits bestehenden
+`recordLifeChange`, inkl. dessen automatischer First-Blood-Erkennung)
+einen passenden negativen `LifeEvents`-Eintrag hinzu - Commander-
+Schaden ist aus Lebenspunkte-Sicht ganz normaler Schaden, kein
+Sonderfall in der Lebenspunkte-Historie/First-Blood-Logik nötig. Im
+`LiveGameScreen` wurde dafür der lokale UI-Zustands-Teil von
+`_applyDelta` (Zahl, First Blood, Eliminierungs-Reihenfolge) in
+`_updateLocalLifeState` ausgelagert, damit `_applyCommanderDamage`
+diesen mitbenutzen kann, OHNE zusätzlich `recordLifeChange`
+aufzurufen (das hätte den LifeEvents-Eintrag doppelt angelegt).
+
+**Commander-Namen für die Auswahl**: `LiveParticipant` bekam zwei neue
+Felder `commanderName`/`secondCommanderName` (aus dem verknüpften
+Deck, siehe `GamesRepository.loadLiveParticipants` - jetzt zusätzlich
+mit LEFT JOIN gegen `Decks`). Der Gegner-Auswahl-Dialog fällt für
+Teilnehmer ohne hinterlegten Commander (anonym oder Deck ohne
+Commander-Angabe) auf einen generischen Platzhalter
+"Commander (unbekannt)" zurück, statt den Teilnehmer ganz aus der
+Auswahl auszuschließen - Commander-Schaden lässt sich so auch gegen
+unvollständig erfasste Gegner eintragen. `GameSetupScreen._startLive`
+lädt die frisch gestarteten Teilnehmer jetzt einmal über
+`loadLiveParticipants` nach, statt sie manuell zu konstruieren
+(ansonsten hätte dieselbe Deck-Join-Logik dort dupliziert werden
+müssen).
+
+**UI**: In der Namenszeile jeder `_LifeTile` (oberhalb der großen
+Lebenspunkte-Zahl) ein kleines Schild-Icon, nur sichtbar, wenn es
+überhaupt Gegner gibt (Solo-Tracking hat keinen möglichen Sender).
+Öffnet `_CommanderDamageDialog`: pro Gegner eine Zeile je Commander
+(Commander + ggf. Partner-Commander getrennt) mit +/- Zählern; "-"
+korrigiert einen Fehleintrag und erhöht die Lebenspunkte entsprechend
+wieder (mit Sicherheitsnetz gegen ein Unterlaufen von 0 im
+Commander-Schaden-Stand selbst). Bewusst KEIN separates
+Bestätigen/Abbrechen - jeder Tipp wird sofort übernommen und
+persistiert, analog zu den +/- Tipp-Flächen der Lebenspunkte selbst.
+
+**Fortsetzen einer Partie**: `GamesRepository.
+loadCommanderDamageTotals` liefert den aktuellen Stand je (Empfänger,
+Quelle, Slot) - analog zum letzten `LifeEvent` pro Teilnehmer -, wird
+beim Fortsetzen (`GameDetailScreen._resumeLiveGame`) geladen und als
+neuer `LiveGameScreen.commanderDamageTotals`-Parameter übergeben.
+
+**Abbrechen einer Partie**: `GamesRepository.cancelLiveGame` löscht
+`CommanderDamageEvents`-Zeilen jetzt zusätzlich zu `LifeEvents` - und
+zwar in BEIDEN Richtungen (als Empfänger UND als Quelle), da die
+Tabelle `GameParticipants` zweimal referenziert.
+
+**Bewusst außerhalb des aktuellen Umfangs** (Nutzerwunsch war reines
+Live-Tracking): keine automatische Eliminierung/Platzierungs-
+Berücksichtigung bei 21+ Commander-Schaden von einer Quelle, keine
+Anzeige/Auswertung von Commander-Schaden nach Partie-Ende
+(`GameDetailScreen`) oder in der Statistik, kein Export/Import dieser
+Rohdaten. Die Rohdaten bleiben aber vollständig in der DB erhalten und
+könnten das bei Bedarf später ohne weitere Schema-Änderung tragen.
+
+Schema-Änderung (neue Tabelle) - wie immer: einmalig
+`dart run build_runner build --delete-conflicting-outputs` und
+App-Daten auf dem Testgerät löschen.
+
+### Nachtrag: UI-Politur (Symbol & Auswahl-Dialog)
+
+Nutzer-Feedback nach der ersten Umsetzung: Das Symbol war zu
+unauffällig (kleines 16px-Icon direkt neben dem Namen) und der
+Auswahl-Dialog musste bei drei Spielern bereits gescrollt werden.
+Daraufhin angepasst, rein UI-seitig, keine Schema-Änderung:
+
+- **Prominenteres Symbol**: In `_LifeTile` wurde der bisherige Inhalt
+  (`DecoratedBox`, jetzt `tileBody` genannt) nur dann in einen `Stack`
+  gepackt, wenn ein `onOpenCommanderDamage`-Callback übergeben wird.
+  Overlay: ein 24px `Icons.shield` in einem kreisförmigen `Material`
+  (`scheme.secondaryContainer`, `elevation: 2`) mit `InkWell` und einem
+  `Badge`, das die aktuelle Gesamtsumme des empfangenen
+  Commander-Schadens (`commanderDamageTotal`) anzeigt, sofern > 0.
+- **Position rechts unten**: Das Overlay ist `Positioned(right: 6,
+  bottom: 6)` innerhalb der (unrotierten) Kachel-Frame, statt wie
+  zuvor in der Namenszeile - wandert dadurch für jede Tischseite via
+  `RotatedBox` automatisch mit an die richtige visuelle Ecke.
+  `_LifeGrid`/`_LifeTile` reichen dafür `commanderDamageTotalByReceiver`
+  (`Map<int, int>`, aggregiert in `_LiveGameScreenState`) bis zur
+  Kachel durch.
+- **Dialog ohne Scroll-Zwang bei drei Spielern**: `_CommanderDamageDialog`
+  verwendet statt `AlertDialog` (feste, schmale Standardbreite, Gegner
+  in einer einzelnen vertikal scrollenden Spalte) jetzt ein eigenes
+  `Dialog` mit `ConstrainedBox` (Breite/Höhe aus `MediaQuery.sizeOf`)
+  und einer `Wrap` aus fest breiten Gegner-Karten (`_opponentCard`,
+  220px), sodass die verfügbare Bildschirmbreite im Querformat
+  ausgenutzt wird und mehrere Gegner i. d. R. in eine Zeile passen.
+  Bei größeren Pods oder schmaleren Bildschirmen fällt es auf mehrere
+  Zeilen mit `SingleChildScrollView`-Fallback zurück. Titel und
+  Schließen-Button (`Icons.close`) sitzen jetzt in einer eigenen
+  Kopfzeile statt in `AlertDialog.title`/`.actions`.
+
+Reine UI-Änderung ohne Tabellen-/Spalten-Änderung - kein erneuter
+`build_runner`-Lauf und kein Löschen der App-Daten nötig.
+
+Weiteres Feedback: `scheme.errorContainer` (rot) wirkte zu aufdringlich/
+alarmierend für ein rein informatives Symbol - auf `scheme.secondaryContainer`
+(neutraler Akzent statt Warnfarbe) umgestellt.
+
+### Nachtrag: Commander-Kills-Statistik
+
+Nutzerfrage: "Wird bei einem Deck mitgespeichert, wenn es einem Spieler
+mehr als 21 Schaden zufügt und so eigentlich einen Spieler gefinisht
+hätte?" - die Rohdaten (CommanderDamageEvents mit laufendem
+resultingCommanderDamage je Quelle/Empfänger/Slot) waren dafür bereits
+vorhanden, es fehlte nur die Auswertung. Ergänzt, mit dem Nutzer
+abgestimmt auf "nur Statistik nachträglich" (kein Live-Hinweis beim
+Erreichen der 21, keine Verknüpfung zur manuell eingetragenen
+Platzierung):
+
+- `GamesRepository.watchSelfGameStats` lädt jetzt zusätzlich (eine
+  einzelne Zusatzabfrage für den ganzen Stream, siehe Kommentar dort)
+  ALLE CommanderDamageEvents und baut daraus `commanderDamageBySource`:
+  je Quell-Teilnehmer der aktuelle (letzte, nicht der jemals erreichte
+  Höchst-)Stand pro (Empfänger, Slot) - ein zwischenzeitlich
+  eingetragener, später korrigierter Fehlerwert zählt dadurch bewusst
+  NICHT mit. Dafür musste `query.watch().map(...)` zu
+  `query.watch().asyncMap(...)` werden (die Zusatzabfrage ist async).
+- Neue private Hilfsmethode `_commanderKillsDealt(sourceParticipantId,
+  commanderDamageBySource)`: zählt, bei wie vielen GEGNERN der
+  jeweils HÖHERE Slot-Stand (Haupt- ODER Partner-Commander, nicht
+  deren Summe - reale Regeln meinen "21 von EINEM Commander")
+  mindestens 21 erreicht.
+- Neues Feld `SelfGameStatsRow.commanderKillsDealt` (immer 0 bei
+  manuell erfassten Partien, da dort keine CommanderDamageEvents
+  existieren).
+- `player_stats.dart`: `DeckWinStats.commanderKillsDealt` (Summe über
+  alle Partien dieses Decks) und `PlayerStats.commanderKillsDealt`
+  (Summe über die gesamte aktuelle Auswahl), beide in
+  `computePlayerStats` aus den Zeilen aufsummiert.
+- UI (`stats_screen.dart`): in der "Gesamt"-Karte sowie in jeder
+  Deck-Karte der "Nach Deck"-Liste ein kleines Schild-Icon mit Anzahl,
+  jeweils nur sichtbar, wenn > 0 (kein "0 Commander-Kills"-Rauschen).
+
+Bewusst weiterhin NICHT umgesetzt (siehe Nutzerentscheidung oben):
+kein visueller Hinweis im Live-Tracking beim Erreichen der 21, keine
+automatische Verknüpfung zur tatsächlichen Platzierung. Reine
+Auswertung bestehender Rohdaten - keine Schema-Änderung, kein
+`build_runner`-Lauf, kein Löschen der App-Daten nötig.
 
 ## Bekannte Einschränkung: keine Datenbank-Migration
 

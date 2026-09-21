@@ -19,6 +19,17 @@ class LiveParticipant {
   final int? startPosition;
   final TableSide? tableSide;
 
+  /// Commander/Partner-Commander des verknüpften Decks (Decks.
+  /// commanderName/secondCommanderName), sofern ein Deck verknüpft ist
+  /// und dort einer hinterlegt wurde - Grundlage für die
+  /// Commander-Schaden-Auswahl (siehe live_game_screen.dart,
+  /// Nutzerwunsch). Bei anonymen Teilnehmern oder Decks ohne
+  /// hinterlegten Commander bleibt [commanderName] null; die
+  /// Commander-Schaden-Auswahl zeigt dann einen generischen
+  /// Platzhalter statt den Teilnehmer ganz auszuschließen.
+  final String? commanderName;
+  final String? secondCommanderName;
+
   const LiveParticipant({
     required this.gameParticipantId,
     required this.displayName,
@@ -26,5 +37,22 @@ class LiveParticipant {
     this.team,
     this.startPosition,
     this.tableSide,
+    this.commanderName,
+    this.secondCommanderName,
   });
 }
+
+/// Eindeutiger Schlüssel für den Commander-Schaden-Stand EINER
+/// Kombination aus Empfänger, Quelle und Commander-Slot (siehe
+/// CommanderDamageEvents) - als einfacher String-Key statt einer
+/// eigenen Klasse mit ==/hashCode, analog zu den bereits an mehreren
+/// Stellen (z. B. ImportService.deckIdByKey) verwendeten
+/// zusammengesetzten String-Keys. Zentral hier definiert, damit
+/// GamesRepository (Laden/Speichern) und live_game_screen.dart
+/// (UI-Zustand) exakt dasselbe Format verwenden.
+String commanderDamageKey({
+  required int receiverId,
+  required int sourceParticipantId,
+  required CommanderSlot slot,
+}) =>
+    '$receiverId|$sourceParticipantId|${slot.name}';

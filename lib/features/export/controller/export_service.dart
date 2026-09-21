@@ -180,6 +180,10 @@ class ExportService {
         isTournamentLegal: d.isTournamentLegal,
         deckLink: d.deckLink,
         archived: d.archived,
+        archetype: d.archetype?.name,
+        secondArchetype: d.secondArchetype?.name,
+        thirdArchetype: d.thirdArchetype?.name,
+        subthemes: d.subthemes,
       );
 
   Future<GameExport> _toGameExport(

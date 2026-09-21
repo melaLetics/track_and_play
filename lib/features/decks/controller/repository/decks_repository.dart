@@ -40,6 +40,10 @@ class DecksRepository {
     bool isProxy = false,
     bool isTournamentLegal = true,
     String? deckLink,
+    DeckArchetype? archetype,
+    DeckArchetype? secondArchetype,
+    DeckArchetype? thirdArchetype,
+    String? subthemes,
   }) {
     return db.into(db.decks).insert(
           DecksCompanion.insert(
@@ -53,6 +57,10 @@ class DecksRepository {
             isProxy: Value(isProxy),
             isTournamentLegal: Value(isTournamentLegal),
             deckLink: Value(deckLink),
+            archetype: Value(archetype),
+            secondArchetype: Value(secondArchetype),
+            thirdArchetype: Value(thirdArchetype),
+            subthemes: Value(subthemes),
           ),
         );
   }
@@ -68,6 +76,10 @@ class DecksRepository {
     bool isProxy = false,
     bool isTournamentLegal = true,
     String? deckLink,
+    DeckArchetype? archetype,
+    DeckArchetype? secondArchetype,
+    DeckArchetype? thirdArchetype,
+    String? subthemes,
   }) {
     return (db.update(db.decks)..where((d) => d.id.equals(deckId))).write(
       DecksCompanion(
@@ -80,6 +92,10 @@ class DecksRepository {
         isProxy: Value(isProxy),
         isTournamentLegal: Value(isTournamentLegal),
         deckLink: Value(deckLink),
+        archetype: Value(archetype),
+        secondArchetype: Value(secondArchetype),
+        thirdArchetype: Value(thirdArchetype),
+        subthemes: Value(subthemes),
       ),
     );
   }

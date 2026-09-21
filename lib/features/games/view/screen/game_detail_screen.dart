@@ -220,6 +220,8 @@ class GameDetailScreen extends ConsumerWidget {
   ) async {
     final repo = ref.read(gamesRepositoryProvider);
     final participants = await repo.loadLiveParticipants(game.id);
+    final commanderDamageTotals =
+        await repo.loadCommanderDamageTotals(game.id);
     if (!context.mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -229,6 +231,7 @@ class GameDetailScreen extends ConsumerWidget {
           startedAt: game.startedAt ?? game.createdAt,
           participants: participants,
           firstBloodParticipantId: game.firstBloodParticipantId,
+          commanderDamageTotals: commanderDamageTotals,
         ),
       ),
     );

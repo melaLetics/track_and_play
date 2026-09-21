@@ -17,6 +17,13 @@ class DeckWinStats {
   /// (Nutzerwunsch).
   final bool isOwnDeck;
 
+  /// Summe von SelfGameStatsRow.commanderKillsDealt über alle Partien
+  /// dieses Decks (Nutzerwunsch: "wird bei einem Deck mitgespeichert,
+  /// wenn es einem Spieler mehr als 21 Schaden zufügt und so eigentlich
+  /// einen Spieler gefinisht hätte?") - nur bei Live-Erfassung > 0
+  /// möglich, siehe dort.
+  final int commanderKillsDealt;
+
   const DeckWinStats({
     required this.deckId,
     required this.deckLabel,
@@ -24,6 +31,7 @@ class DeckWinStats {
     required this.gamesPlayed,
     required this.wins,
     required this.isOwnDeck,
+    required this.commanderKillsDealt,
   });
 
   /// null statt einer Division durch 0, wenn das Deck (noch) nie
@@ -40,15 +48,27 @@ class PlayerStats {
   final int wins;
   final List<DeckWinStats> byDeck;
 
+  /// Summe aller [DeckWinStats.commanderKillsDealt] - Gesamtzahl der
+  /// Gegner, die der Ich-Spieler über alle Decks/Partien dieser
+  /// Auswahl hinweg per Commander-Schaden (>= 21 von einem einzelnen
+  /// Commander) faktisch gefinisht hätte.
+  final int commanderKillsDealt;
+
   const PlayerStats({
     required this.gamesPlayed,
     required this.wins,
     required this.byDeck,
+    required this.commanderKillsDealt,
   });
 
   double? get winRate => gamesPlayed == 0 ? null : wins / gamesPlayed;
 
-  static const empty = PlayerStats(gamesPlayed: 0, wins: 0, byDeck: []);
+  static const empty = PlayerStats(
+    gamesPlayed: 0,
+    wins: 0,
+    byDeck: [],
+    commanderKillsDealt: 0,
+  );
 }
 
 /// Berechnet [PlayerStats] aus einer (ggf. bereits nach Gruppe
@@ -79,8 +99,17 @@ PlayerStats computePlayerStats(List<SelfGameStatsRow> rows) {
         // Ownership eines Decks aendert sich nicht zwischen Partien -
         // der Wert der ersten Zeile dieses deckId-Buckets reicht.
         isOwnDeck: entry.value.first.isOwnDeck,
+        commanderKillsDealt: entry.value.fold(
+          0,
+          (sum, r) => sum + r.commanderKillsDealt,
+        ),
       ),
   ]..sort((a, b) => b.gamesPlayed.compareTo(a.gamesPlayed));
 
-  return PlayerStats(gamesPlayed: gamesPlayed, wins: wins, byDeck: byDeck);
+  return PlayerStats(
+    gamesPlayed: gamesPlayed,
+    wins: wins,
+    byDeck: byDeck,
+    commanderKillsDealt: rows.fold(0, (sum, r) => sum + r.commanderKillsDealt),
+  );
 }

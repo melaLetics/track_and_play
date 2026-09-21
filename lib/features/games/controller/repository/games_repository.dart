@@ -108,6 +108,29 @@ class SelfGameStatsRow {
   /// "Nach Deck"-Statistik, siehe stats_screen.dart.
   final bool isOwnDeck;
 
+  /// Alle gesetzten Archetypen (bis zu drei, siehe Decks.archetype/
+  /// secondArchetype/thirdArchetype) des vom Ich-Spieler in dieser
+  /// Partie gespielten Decks, leer wenn kein Deck verknüpft ist oder
+  /// keiner gesetzt wurde - Grundlage für computeWinRateByArchetype
+  /// (player_performance_stats.dart), das diese Partie in JEDEN der
+  /// hier enthaltenen Archetyp-Buckets zaehlt. Bewusst NICHT die
+  /// freien Subthemes (Decks.subthemes) - Nutzerwunsch, die Statistik
+  /// soll sich auf die feste Archetyp-Auswahl beschränken.
+  final List<DeckArchetype> archetypes;
+
+  /// Anzahl GEGNER, die der Ich-Spieler in dieser Partie durch
+  /// Commander-Schaden eines einzelnen Commanders (Haupt- ODER
+  /// Partner-Commander, siehe CommanderDamageEvents/CommanderSlot) auf
+  /// mindestens 21 gebracht hat - also faktisch "gefinisht" hätte,
+  /// auch wenn keine automatische Eliminierung stattfindet (Nutzerwunsch,
+  /// siehe ARCHITECTURE.md "Commander-Schaden im Live-Tracking": bewusst
+  /// kein Auto-Finish, aber die Rohdaten reichen für diese nachtraegliche
+  /// Auswertung). Bewusst der aktuelle (letzte), nicht der jemals
+  /// erreichte Hoechststand pro (Gegner, Commander) - ein nachtraeglich
+  /// korrigierter Fehleintrag zaehlt dann nicht mit. Nur bei
+  /// Live-Erfassung ueberhaupt > 0 moeglich (siehe dort), sonst immer 0.
+  final int commanderKillsDealt;
+
   const SelfGameStatsRow({
     required this.gameId,
     required this.groupId,
@@ -125,6 +148,8 @@ class SelfGameStatsRow {
     required this.opponentPlayedOwnDeck,
     required this.lentDecks,
     required this.isOwnDeck,
+    required this.archetypes,
+    required this.commanderKillsDealt,
   });
 }
 
@@ -310,11 +335,37 @@ class GamesRepository {
     ])
       ..where(db.games.status.equalsValue(GameStatus.completed));
 
-    return query.watch().map((rows) {
+    return query.watch().asyncMap((rows) async {
       final byGame = <int, List<TypedResult>>{};
       for (final row in rows) {
         final gameId = row.readTable(db.games).id;
         byGame.putIfAbsent(gameId, () => []).add(row);
+      }
+
+      // Aktueller (letzter) Commander-Schaden-Stand je (Quelle,
+      // Empfänger, Slot), über ALLE Partien hinweg - Grundlage für
+      // SelfGameStatsRow.commanderKillsDealt. Eine gameParticipantId
+      // gehört immer zu genau einer Partie, ein flaches Mapping nach
+      // sourceParticipantId reicht daher aus, ohne extra nach gameId zu
+      // filtern. Nur eine einzelne Zusatzabfrage für den ganzen Stream
+      // (nicht pro Partie), da CommanderDamageEvents für bereits
+      // abgeschlossene Partien nicht mehr geschrieben wird (siehe dort)
+      // - der Stream reagiert also ohnehin nicht auf spätere Änderungen
+      // an bereits abgeschlossenen Partien.
+      final commanderDamageEvents = await (db.select(
+        db.commanderDamageEvents,
+      )..orderBy([(e) => OrderingTerm(expression: e.occurredAt)])).get();
+      final commanderDamageBySource = <int, Map<String, int>>{};
+      for (final e in commanderDamageEvents) {
+        final bySlot = commanderDamageBySource.putIfAbsent(
+          e.sourceParticipantId,
+          () => {},
+        );
+        // Zeitlich sortiert durchlaufen, letzter Wert je Schlüssel
+        // gewinnt = aktueller Stand (analog zu
+        // loadCommanderDamageTotals oben).
+        bySlot['${e.gameParticipantId}|${e.commanderSlot.name}'] =
+            e.resultingCommanderDamage;
       }
 
       final result = <SelfGameStatsRow>[];
@@ -362,12 +413,40 @@ class GamesRepository {
             opponentPlayedOwnDeck: opponentPlayedOwnDeck,
             lentDecks: lentDecks,
             selfPlayerId: selfPlayerId,
+            commanderKillsDealt: _commanderKillsDealt(
+              selfRow.readTable(db.gameParticipants).id,
+              commanderDamageBySource,
+            ),
           ),
         );
       }
       result.sort((a, b) => a.playedAt.compareTo(b.playedAt));
       return result;
     });
+  }
+
+  /// Zählt, bei wie vielen GEGNERN [sourceParticipantId] (ein
+  /// einzelner Commander, egal ob Haupt- oder Partner-Commander)
+  /// mindestens 21 aktuellen Commander-Schaden verursacht hat - siehe
+  /// [SelfGameStatsRow.commanderKillsDealt]. Pro Gegner zählt der
+  /// HÖHERE der beiden Slot-Stände (Haupt-/Partner-Commander), nicht
+  /// deren Summe - in echten Regeln ist "21 von EINEM Commander"
+  /// gemeint, nicht die Summe beider.
+  int _commanderKillsDealt(
+    int sourceParticipantId,
+    Map<int, Map<String, int>> commanderDamageBySource,
+  ) {
+    final bySlot = commanderDamageBySource[sourceParticipantId];
+    if (bySlot == null || bySlot.isEmpty) return 0;
+
+    final maxByReceiver = <int, int>{};
+    for (final entry in bySlot.entries) {
+      final receiverId = int.parse(entry.key.split('|')[0]);
+      if (entry.value > (maxByReceiver[receiverId] ?? 0)) {
+        maxByReceiver[receiverId] = entry.value;
+      }
+    }
+    return maxByReceiver.values.where((v) => v >= 21).length;
   }
 
   SelfGameStatsRow _toSelfStatsRow(
@@ -378,6 +457,7 @@ class GamesRepository {
     required bool opponentPlayedOwnDeck,
     required List<LentDeckInfo> lentDecks,
     required int selfPlayerId,
+    required int commanderKillsDealt,
   }) {
     return SelfGameStatsRow(
       gameId: game.id,
@@ -396,6 +476,12 @@ class GamesRepository {
       opponentPlayedOwnDeck: opponentPlayedOwnDeck,
       lentDecks: lentDecks,
       isOwnDeck: deck == null || deck.ownerPlayerId == selfPlayerId,
+      archetypes: deck == null
+          ? const []
+          : [deck.archetype, deck.secondArchetype, deck.thirdArchetype]
+              .whereType<DeckArchetype>()
+              .toList(),
+      commanderKillsDealt: commanderKillsDealt,
     );
   }
 
@@ -492,6 +578,12 @@ class GamesRepository {
         db.players,
         db.players.id.equalsExp(db.gameParticipants.playerId),
       ),
+      // Fuer die Commander-Schaden-Auswahl (Nutzerwunsch) - siehe
+      // LiveParticipant.commanderName/secondCommanderName.
+      leftOuterJoin(
+        db.decks,
+        db.decks.id.equalsExp(db.gameParticipants.deckId),
+      ),
     ])
       ..where(db.gameParticipants.gameId.equals(gameId))
       ..orderBy([
@@ -503,6 +595,7 @@ class GamesRepository {
     for (final row in rows) {
       final participant = row.readTable(db.gameParticipants);
       final player = row.readTableOrNull(db.players);
+      final deck = row.readTableOrNull(db.decks);
       final lastEvent = await (db.select(db.lifeEvents)
             ..where((e) => e.gameParticipantId.equals(participant.id))
             ..orderBy([
@@ -524,10 +617,45 @@ class GamesRepository {
           team: participant.team,
           startPosition: participant.startPosition,
           tableSide: participant.tableSide,
+          commanderName: deck?.commanderName,
+          secondCommanderName: deck?.secondCommanderName,
         ),
       );
     }
     return result;
+  }
+
+  /// Aktueller Commander-Schaden-Stand je (Empfänger, Quelle, Slot) für
+  /// [gameId] - für das Fortsetzen einer laufenden Live-Partie (siehe
+  /// [loadLiveParticipants]), analog zum letzten LifeEvent pro
+  /// Teilnehmer dort. Leere Map bei einer frisch gestarteten Partie
+  /// oder wenn noch kein Commander-Schaden eingetragen wurde.
+  Future<Map<String, int>> loadCommanderDamageTotals(int gameId) async {
+    final participantIds = await (db.select(db.gameParticipants)
+          ..where((p) => p.gameId.equals(gameId)))
+        .map((p) => p.id)
+        .get();
+    if (participantIds.isEmpty) return {};
+
+    final events = await (db.select(db.commanderDamageEvents)
+          ..where((e) => e.gameParticipantId.isIn(participantIds))
+          ..orderBy([(e) => OrderingTerm(expression: e.occurredAt)]))
+        .get();
+
+    // Zeitlich sortiert durchlaufen und je Schlüssel immer den
+    // zuletzt gesehenen (= aktuellen) resultingCommanderDamage-Wert
+    // behalten - exakt dasselbe Prinzip wie das letzte LifeEvent pro
+    // Teilnehmer oben.
+    final totals = <String, int>{};
+    for (final e in events) {
+      final key = commanderDamageKey(
+        receiverId: e.gameParticipantId,
+        sourceParticipantId: e.sourceParticipantId,
+        slot: e.commanderSlot,
+      );
+      totals[key] = e.resultingCommanderDamage;
+    }
+    return totals;
   }
 
   /// Bricht eine noch laufende Live-Partie vollständig ab (Nutzerwunsch:
@@ -549,6 +677,15 @@ class GamesRepository {
       for (final id in participantIds) {
         await (db.delete(db.lifeEvents)
               ..where((e) => e.gameParticipantId.equals(id)))
+            .go();
+        // CommanderDamageEvents referenziert GameParticipants ZWEIMAL
+        // (Empfänger UND Quelle) - beide Richtungen müssen geleert
+        // werden, sonst blieben verwaiste Zeilen zurück.
+        await (db.delete(db.commanderDamageEvents)
+              ..where((e) => e.gameParticipantId.equals(id)))
+            .go();
+        await (db.delete(db.commanderDamageEvents)
+              ..where((e) => e.sourceParticipantId.equals(id)))
             .go();
       }
       await (db.delete(db.gameParticipants)
@@ -588,6 +725,46 @@ class GamesRepository {
           );
         }
       }
+    });
+  }
+
+  /// Protokolliert einen Commander-Schaden-Eintrag (Nutzerwunsch: "Der
+  /// hier eingetragene Schaden wird dann automatisch vom
+  /// Lebenspunktestand abgezogen") - fügt EINEN
+  /// CommanderDamageEvents-Eintrag hinzu UND wendet denselben Betrag
+  /// als negativen LifeEvents-Eintrag an (siehe [recordLifeChange],
+  /// inkl. automatischer First-Blood-Erkennung - Commander-Schaden ist
+  /// aus Lebenspunkte-Sicht ganz normaler Schaden, kein Sonderfall
+  /// nötig). Beides in einer gemeinsamen Transaktion (Drift
+  /// unterstützt verschachtelte transaction()-Aufrufe über Savepoints).
+  /// [resultingLife] muss vom Aufrufer (siehe live_game_screen.dart)
+  /// bereits als "aktuelle Lebenspunkte minus delta" berechnet worden
+  /// sein, analog zu [recordLifeChange].
+  Future<void> recordCommanderDamage({
+    required int gameId,
+    required int gameParticipantId,
+    required int sourceParticipantId,
+    required CommanderSlot commanderSlot,
+    required int delta,
+    required int resultingCommanderDamage,
+    required int resultingLife,
+  }) {
+    return db.transaction(() async {
+      await db.into(db.commanderDamageEvents).insert(
+            CommanderDamageEventsCompanion.insert(
+              gameParticipantId: gameParticipantId,
+              sourceParticipantId: sourceParticipantId,
+              commanderSlot: commanderSlot,
+              delta: delta,
+              resultingCommanderDamage: resultingCommanderDamage,
+            ),
+          );
+      await recordLifeChange(
+        gameId: gameId,
+        gameParticipantId: gameParticipantId,
+        delta: -delta,
+        resultingLife: resultingLife,
+      );
     });
   }
 

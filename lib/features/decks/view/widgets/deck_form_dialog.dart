@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../database/app_database.dart';
 import '../../controller/provider/decks_repository_provider.dart';
+import '../../model/deck_archetype_labels.dart';
 import '../../model/deck_build_type_labels.dart';
 import 'color_identity_picker.dart';
 
@@ -33,13 +34,31 @@ class _DeckFormDialog extends ConsumerStatefulWidget {
 }
 
 class _DeckFormDialogState extends ConsumerState<_DeckFormDialog> {
+  // Einmal berechnete, alphabetisch nach Anzeige-Label sortierte
+  // Archetyp-Liste fuer das Dropdown (siehe build) - als statisches
+  // Feld statt bei jedem build() neu zu sortieren.
+  static final List<DeckArchetype> _archetypesSortedByLabel =
+      [...DeckArchetype.values]..sort(
+          (a, b) => (deckArchetypeLabels[a] ?? a.name)
+              .compareTo(deckArchetypeLabels[b] ?? b.name),
+        );
+
   late final TextEditingController _nameController;
   late final TextEditingController _commanderController;
   late final TextEditingController _commander2Controller;
   late final TextEditingController _deckLinkController;
+  late final TextEditingController _subthemesController;
   late String _colorIdentity;
   late bool _showSecondCommander;
   DeckBuildType? _buildType;
+  DeckArchetype? _archetype;
+  DeckArchetype? _secondArchetype;
+  DeckArchetype? _thirdArchetype;
+  // Wie viele Archetyp-Dropdowns aktuell sichtbar sind (1-3, siehe
+  // "Weiteren Archetyp hinzufügen" unten) - rein UI-Zustand, beim
+  // Speichern werden die tatsaechlich gesetzten Werte kompaktiert
+  // (siehe _save), unabhaengig davon, welches Dropdown geleert wurde.
+  late int _archetypeFieldCount;
   int? _bracket;
   late bool _isProxy;
   late bool _isTournamentLegal;
@@ -54,9 +73,17 @@ class _DeckFormDialogState extends ConsumerState<_DeckFormDialog> {
     _commander2Controller =
         TextEditingController(text: deck?.secondCommanderName ?? '');
     _deckLinkController = TextEditingController(text: deck?.deckLink ?? '');
+    _subthemesController =
+        TextEditingController(text: deck?.subthemes ?? '');
     _colorIdentity = deck?.colorIdentity ?? '';
     _showSecondCommander = (deck?.secondCommanderName ?? '').isNotEmpty;
     _buildType = deck?.buildType;
+    _archetype = deck?.archetype;
+    _secondArchetype = deck?.secondArchetype;
+    _thirdArchetype = deck?.thirdArchetype;
+    _archetypeFieldCount = _thirdArchetype != null
+        ? 3
+        : (_secondArchetype != null ? 2 : 1);
     _bracket = deck?.bracket;
     _isProxy = deck?.isProxy ?? false;
     _isTournamentLegal = deck?.isTournamentLegal ?? true;
@@ -68,6 +95,7 @@ class _DeckFormDialogState extends ConsumerState<_DeckFormDialog> {
     _commanderController.dispose();
     _commander2Controller.dispose();
     _deckLinkController.dispose();
+    _subthemesController.dispose();
     super.dispose();
   }
 
@@ -84,11 +112,26 @@ class _DeckFormDialogState extends ConsumerState<_DeckFormDialog> {
     final commander = _commanderController.text.trim();
     final commander2 = _commander2Controller.text.trim();
     final deckLink = _deckLinkController.text.trim();
+    final subthemes = _subthemesController.text.trim();
     final repo = ref.read(decksRepositoryProvider);
     final ownerPlayerId = widget.ownerPlayerId;
     final existingDeck = widget.existingDeck;
     final colorIdentity = _colorIdentity;
     final buildType = _buildType;
+    // Kompaktiert (keine Luecken, falls ein mittleres Dropdown auf
+    // "Keine Angabe" gesetzt wurde) UND dedupliziert (falls derselbe
+    // Archetyp versehentlich mehrfach ausgewaehlt wurde) - siehe
+    // _archetypeFieldCount-Kommentar oben.
+    final selectedArchetypes = [_archetype, _secondArchetype, _thirdArchetype]
+        .whereType<DeckArchetype>()
+        .toSet()
+        .toList();
+    final archetype =
+        selectedArchetypes.isNotEmpty ? selectedArchetypes[0] : null;
+    final secondArchetype =
+        selectedArchetypes.length > 1 ? selectedArchetypes[1] : null;
+    final thirdArchetype =
+        selectedArchetypes.length > 2 ? selectedArchetypes[2] : null;
     final bracket = _bracket;
     final isProxy = _isProxy;
     final isTournamentLegal = _isTournamentLegal;
@@ -109,6 +152,10 @@ class _DeckFormDialogState extends ConsumerState<_DeckFormDialog> {
           isProxy: isProxy,
           isTournamentLegal: isTournamentLegal,
           deckLink: deckLink.isEmpty ? null : deckLink,
+          archetype: archetype,
+          secondArchetype: secondArchetype,
+          thirdArchetype: thirdArchetype,
+          subthemes: subthemes.isEmpty ? null : subthemes,
         );
       } else {
         await repo.updateDeck(
@@ -122,6 +169,10 @@ class _DeckFormDialogState extends ConsumerState<_DeckFormDialog> {
           isProxy: isProxy,
           isTournamentLegal: isTournamentLegal,
           deckLink: deckLink.isEmpty ? null : deckLink,
+          archetype: archetype,
+          secondArchetype: secondArchetype,
+          thirdArchetype: thirdArchetype,
+          subthemes: subthemes.isEmpty ? null : subthemes,
         );
       }
     } catch (e) {
@@ -129,6 +180,33 @@ class _DeckFormDialogState extends ConsumerState<_DeckFormDialog> {
         SnackBar(content: Text('Fehler beim Speichern: $e')),
       );
     }
+  }
+
+  /// Gemeinsam genutztes Dropdown für alle bis zu drei Archetyp-
+  /// Felder (siehe build) - alphabetisch nach Anzeige-Label sortiert
+  /// statt in Enum-Deklarationsreihenfolge, da ~45 Einträge sonst kaum
+  /// auffindbar wären.
+  Widget _archetypeDropdown({
+    required String label,
+    required DeckArchetype? value,
+    required ValueChanged<DeckArchetype?> onChanged,
+  }) {
+    return DropdownButtonFormField<DeckArchetype?>(
+      initialValue: value,
+      decoration: InputDecoration(labelText: label),
+      items: [
+        const DropdownMenuItem<DeckArchetype?>(
+          value: null,
+          child: Text('Keine Angabe'),
+        ),
+        for (final type in _archetypesSortedByLabel)
+          DropdownMenuItem<DeckArchetype?>(
+            value: type,
+            child: Text(deckArchetypeLabels[type] ?? type.name),
+          ),
+      ],
+      onChanged: onChanged,
+    );
   }
 
   @override
@@ -209,6 +287,48 @@ class _DeckFormDialogState extends ConsumerState<_DeckFormDialog> {
               onChanged: (value) => setState(() => _buildType = value),
             ),
             const SizedBox(height: 16),
+            // Bis zu drei Archetypen (Nutzerwunsch-Erweiterung: viele
+            // Decks lassen sich nicht auf einen Archetyp reduzieren),
+            // angelehnt an die EDHREC/Moxfield-Theme-Taxonomie (siehe
+            // decks_table.dart/DeckArchetype). Weitere Dropdowns werden
+            // erst nach Bedarf über den Button unten eingeblendet -
+            // Leeren per "Keine Angabe" reicht zum Entfernen, siehe
+            // Kompaktierung in _save.
+            _archetypeDropdown(
+              label: 'Archetyp (optional)',
+              value: _archetype,
+              onChanged: (value) => setState(() => _archetype = value),
+            ),
+            if (_archetypeFieldCount >= 2) ...[
+              const SizedBox(height: 8),
+              _archetypeDropdown(
+                label: 'Weiterer Archetyp (optional)',
+                value: _secondArchetype,
+                onChanged: (value) =>
+                    setState(() => _secondArchetype = value),
+              ),
+            ],
+            if (_archetypeFieldCount >= 3) ...[
+              const SizedBox(height: 8),
+              _archetypeDropdown(
+                label: 'Weiterer Archetyp (optional)',
+                value: _thirdArchetype,
+                onChanged: (value) => setState(() => _thirdArchetype = value),
+              ),
+            ],
+            if (_archetypeFieldCount < 3) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () =>
+                      setState(() => _archetypeFieldCount++),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Weiteren Archetyp hinzufügen'),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
             Row(
               children: [
                 const Text('Bracket (optional):'),
@@ -249,6 +369,16 @@ class _DeckFormDialogState extends ConsumerState<_DeckFormDialog> {
               controller: _deckLinkController,
               decoration: const InputDecoration(
                 labelText: 'Online-Link zum Deck (optional)',
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Feinere Subthemes als freier Text (Nutzerwunsch) - bewusst
+            // kein zweites Dropdown/keine Mehrfachauswahl, siehe
+            // Decks.subthemes.
+            TextField(
+              controller: _subthemesController,
+              decoration: const InputDecoration(
+                labelText: 'Subthemes (optional, z. B. "Ninjutsu, Clones")',
               ),
             ),
             if (isEditing) ...[

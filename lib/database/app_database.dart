@@ -8,6 +8,7 @@ import 'tables/player_group_memberships_table.dart';
 import 'tables/games_table.dart';
 import 'tables/game_participants_table.dart';
 import 'tables/life_events_table.dart';
+import 'tables/commander_damage_events_table.dart';
 
 // Re-Export, damit Konsumenten (Repositories, UI) mit einem einzigen
 // Import von app_database.dart sowohl die generierten Datenklassen als
@@ -20,6 +21,7 @@ export 'tables/player_group_memberships_table.dart';
 export 'tables/games_table.dart';
 export 'tables/game_participants_table.dart';
 export 'tables/life_events_table.dart';
+export 'tables/commander_damage_events_table.dart';
 
 part 'app_database.g.dart';
 
@@ -31,6 +33,7 @@ part 'app_database.g.dart';
   Games,
   GameParticipants,
   LifeEvents,
+  CommanderDamageEvents,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());

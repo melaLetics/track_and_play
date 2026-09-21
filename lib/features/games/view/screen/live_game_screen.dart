@@ -36,6 +36,12 @@ class LiveGameScreen extends ConsumerStatefulWidget {
   /// Bleibt beim erstmaligen Start einer Partie null.
   final int? firstBloodParticipantId;
 
+  /// Aktueller Commander-Schaden-Stand je (Empfänger, Quelle, Slot)
+  /// beim FORTSETZEN einer laufenden Live-Partie (siehe
+  /// GamesRepository.loadCommanderDamageTotals) - analog zu
+  /// [firstBloodParticipantId]. Leer beim erstmaligen Start.
+  final Map<String, int> commanderDamageTotals;
+
   const LiveGameScreen({
     super.key,
     required this.gameId,
@@ -43,6 +49,7 @@ class LiveGameScreen extends ConsumerStatefulWidget {
     required this.startedAt,
     required this.participants,
     this.firstBloodParticipantId,
+    this.commanderDamageTotals = const {},
   });
 
   @override
@@ -52,6 +59,21 @@ class LiveGameScreen extends ConsumerStatefulWidget {
 class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
   late final Map<int, int> _currentLife;
   int? _firstBloodParticipantId;
+
+  /// Aktueller Commander-Schaden-Stand je (Empfänger, Quelle, Slot),
+  /// siehe commanderDamageKey (live_participant.dart) - mutable
+  /// Arbeitskopie von widget.commanderDamageTotals, analog zu
+  /// [_currentLife].
+  late final Map<String, int> _currentCommanderDamage;
+
+  /// Summe des erhaltenen Commander-Schadens je Empfänger, über ALLE
+  /// Quellen/Slots hinweg - abgeleitete Arbeitskopie neben
+  /// [_currentCommanderDamage], damit [_LifeTile] die Gesamtsumme als
+  /// Badge anzeigen kann (Nutzerwunsch: "Symbol ... prominenter"),
+  /// ohne bei jedem build() alle Schlüssel neu aufzusummieren. Wird
+  /// einmalig in initState aus widget.commanderDamageTotals berechnet
+  /// und danach in [_applyCommanderDamage] inkrementell mitgeführt.
+  late final Map<int, int> _commanderDamageTotalByReceiver;
 
   /// Reihenfolge, in der Teilnehmer zum ersten Mal auf <= 0 Lebenspunkte
   /// gefallen sind (gameParticipantId, chronologisch). Grundlage für den
@@ -82,6 +104,13 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
     _currentLife = {
       for (final p in widget.participants) p.gameParticipantId: p.startingLife,
     };
+    _currentCommanderDamage = Map.of(widget.commanderDamageTotals);
+    _commanderDamageTotalByReceiver = {};
+    for (final entry in _currentCommanderDamage.entries) {
+      final receiverId = int.parse(entry.key.split('|')[0]);
+      _commanderDamageTotalByReceiver[receiverId] =
+          (_commanderDamageTotalByReceiver[receiverId] ?? 0) + entry.value;
+    }
     _firstBloodParticipantId = widget.firstBloodParticipantId;
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
@@ -123,24 +152,99 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
     return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
   }
 
-  Future<void> _applyDelta(LiveParticipant participant, int delta) async {
-    final newLife = (_currentLife[participant.gameParticipantId] ?? 0) + delta;
+  /// Aktualisiert NUR den lokalen UI-Zustand für eine Lebenspunkte-
+  /// Änderung (Zahl, "Erste Blutung", Eliminierungs-Reihenfolge) -
+  /// OHNE einen DB-Schreibvorgang. Gemeinsam genutzt von [_applyDelta]
+  /// (normale +/- Tipp-Flächen) und [_applyCommanderDamage]
+  /// (Commander-Schaden zieht automatisch Lebenspunkte ab), damit
+  /// beide exakt dieselbe Logik anwenden, aber [_applyCommanderDamage]
+  /// selbst über GamesRepository.recordCommanderDamage schreibt (statt
+  /// zusätzlich [recordLifeChange] aufzurufen, was den LifeEvents-
+  /// Eintrag doppelt anlegen würde).
+  void _updateLocalLifeState(int participantId, int newLife, int delta) {
     setState(() {
-      _currentLife[participant.gameParticipantId] = newLife;
+      _currentLife[participantId] = newLife;
       if (delta < 0 && _firstBloodParticipantId == null) {
-        _firstBloodParticipantId = participant.gameParticipantId;
+        _firstBloodParticipantId = participantId;
       }
-      if (newLife <= 0 &&
-          !_eliminationOrder.contains(participant.gameParticipantId)) {
-        _eliminationOrder.add(participant.gameParticipantId);
+      if (newLife <= 0 && !_eliminationOrder.contains(participantId)) {
+        _eliminationOrder.add(participantId);
       }
     });
+  }
+
+  Future<void> _applyDelta(LiveParticipant participant, int delta) async {
+    final newLife = (_currentLife[participant.gameParticipantId] ?? 0) + delta;
+    _updateLocalLifeState(participant.gameParticipantId, newLife, delta);
     final repo = ref.read(gamesRepositoryProvider);
     await repo.recordLifeChange(
       gameId: widget.gameId,
       gameParticipantId: participant.gameParticipantId,
       delta: delta,
       resultingLife: newLife,
+    );
+  }
+
+  /// Trägt [delta] Commander-Schaden von [source]s Commander/Partner-
+  /// Commander ([slot]) gegen [receiver] ein und zieht denselben
+  /// Betrag automatisch von dessen Lebenspunkten ab (Nutzerwunsch).
+  /// [delta] ist normalerweise positiv (neuer Schaden); negative Werte
+  /// über den "-"-Button im Dialog korrigieren einen Fehleintrag und
+  /// erhöhen die Lebenspunkte entsprechend wieder.
+  Future<void> _applyCommanderDamage(
+    LiveParticipant receiver,
+    LiveParticipant source,
+    CommanderSlot slot,
+    int delta,
+  ) async {
+    final key = commanderDamageKey(
+      receiverId: receiver.gameParticipantId,
+      sourceParticipantId: source.gameParticipantId,
+      slot: slot,
+    );
+    final newTotal = (_currentCommanderDamage[key] ?? 0) + delta;
+    // Sicherheitsnetz gegen ein versehentliches Unterlaufen von 0 beim
+    // Korrigieren (z. B. zweimal "-1" ohne vorherigen Schaden).
+    if (newTotal < 0) return;
+    final newLife = (_currentLife[receiver.gameParticipantId] ?? 0) - delta;
+    setState(() {
+      _currentCommanderDamage[key] = newTotal;
+      _commanderDamageTotalByReceiver[receiver.gameParticipantId] =
+          (_commanderDamageTotalByReceiver[receiver.gameParticipantId] ?? 0) +
+              delta;
+    });
+    _updateLocalLifeState(receiver.gameParticipantId, newLife, -delta);
+    final repo = ref.read(gamesRepositoryProvider);
+    await repo.recordCommanderDamage(
+      gameId: widget.gameId,
+      gameParticipantId: receiver.gameParticipantId,
+      sourceParticipantId: source.gameParticipantId,
+      commanderSlot: slot,
+      delta: delta,
+      resultingCommanderDamage: newTotal,
+      resultingLife: newLife,
+    );
+  }
+
+  /// Öffnet den Commander-Schaden-Dialog für [receiver] (Nutzerwunsch:
+  /// "über ein Menü ... den Commander auswählen, und dort den Schaden
+  /// eintragen"). Nur aufrufbar, wenn es mindestens einen Gegner gibt
+  /// (siehe [_LifeTile]-Aufrufstelle unten, Button wird bei
+  /// Solo-Partien gar nicht erst angezeigt).
+  void _openCommanderDamageDialog(LiveParticipant receiver) {
+    final opponents = [
+      for (final p in widget.participants)
+        if (p.gameParticipantId != receiver.gameParticipantId) p,
+    ];
+    showDialog<void>(
+      context: context,
+      builder: (_) => _CommanderDamageDialog(
+        receiver: receiver,
+        opponents: opponents,
+        currentTotals: _currentCommanderDamage,
+        onDelta: (source, slot, delta) =>
+            _applyCommanderDamage(receiver, source, slot, delta),
+      ),
     );
   }
 
@@ -246,6 +350,14 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
           life: _currentLife,
           firstBloodParticipantId: _firstBloodParticipantId,
           onDelta: _applyDelta,
+          // Nur bei mehr als einem Teilnehmer gibt es überhaupt
+          // gegnerische Commander, gegen die Schaden eingetragen
+          // werden könnte (Solo-Tracking: kein Gegner) - null lässt
+          // den Button in _LifeTile ganz entfallen.
+          onOpenCommanderDamage: widget.participants.length > 1
+              ? _openCommanderDamageDialog
+              : null,
+          commanderDamageTotalByReceiver: _commanderDamageTotalByReceiver,
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -329,22 +441,36 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
 /// App-Theme entnommenen Flächenfarben (Nutzervorgabe) - anders als
 /// die Referenz-App, die je Spieler ein eigenes Hintergrundbild zeigt.
 /// Die vier Schnellzugriffs-Ecken der Referenz (Schaden/Steuer/Mana/
-/// Spielmarken) sind bewusst NICHT übernommen - dafür gibt es in
-/// dieser App noch keine Datengrundlage (kein Schadens-Log, keine
-/// Kommandeur-Schaden-Matrix, kein Mana-Pool, keine Marken-Zähler);
-/// mit dem Nutzer abgestimmt, können bei Bedarf später einzeln
-/// nachgezogen werden.
+/// Spielmarken) sind bewusst NICHT übernommen - dafür gab es in dieser
+/// App zunächst noch keine Datengrundlage; mit dem Nutzer abgestimmt,
+/// können sie bei Bedarf einzeln nachgezogen werden. Die
+/// Commander-Schaden-Matrix wurde inzwischen nachgezogen (siehe
+/// [_LifeTile]/_CommanderDamageDialog/CommanderDamageEvents,
+/// ARCHITECTURE.md "Commander-Schaden im Live-Tracking") - Steuer,
+/// Mana-Pool und Marken-Zähler fehlen weiterhin.
 class _LifeGrid extends StatelessWidget {
   final List<LiveParticipant> participants;
   final Map<int, int> life;
   final int? firstBloodParticipantId;
   final void Function(LiveParticipant participant, int delta) onDelta;
 
+  /// null blendet den Commander-Schaden-Button in [_LifeTile] aus
+  /// (siehe Aufrufstelle in [_LiveGameScreenState.build] - nur bei
+  /// Solo-Partien ohne Gegner).
+  final ValueChanged<LiveParticipant>? onOpenCommanderDamage;
+
+  /// Summe des erhaltenen Commander-Schadens je Empfänger, siehe
+  /// _LiveGameScreenState._commanderDamageTotalByReceiver - für das
+  /// Badge auf dem Commander-Schaden-Button in [_LifeTile].
+  final Map<int, int> commanderDamageTotalByReceiver;
+
   const _LifeGrid({
     required this.participants,
     required this.life,
     required this.firstBloodParticipantId,
     required this.onDelta,
+    required this.onOpenCommanderDamage,
+    required this.commanderDamageTotalByReceiver,
   });
 
   TableSide _sideOf(LiveParticipant p) => p.tableSide ?? TableSide.bottom;
@@ -430,6 +556,11 @@ class _LifeGrid extends StatelessWidget {
       quarterTurns: quarterTurns,
       isFirstBlood: firstBloodParticipantId == p.gameParticipantId,
       onDelta: (delta) => onDelta(p, delta),
+      onOpenCommanderDamage: onOpenCommanderDamage == null
+          ? null
+          : () => onOpenCommanderDamage!(p),
+      commanderDamageTotal:
+          commanderDamageTotalByReceiver[p.gameParticipantId] ?? 0,
     );
   }
 }
@@ -456,12 +587,22 @@ class _LifeTile extends StatelessWidget {
   final bool isFirstBlood;
   final ValueChanged<int> onDelta;
 
+  /// null blendet den Button aus (siehe _LifeGrid._tile).
+  final VoidCallback? onOpenCommanderDamage;
+
+  /// Summe des bereits erhaltenen Commander-Schadens (über alle
+  /// Quellen/Slots) - als Badge-Zahl auf dem Button (Nutzerwunsch:
+  /// "Symbol ... prominenter"), 0 wenn noch keiner eingetragen wurde.
+  final int commanderDamageTotal;
+
   const _LifeTile({
     required this.participant,
     required this.life,
     required this.quarterTurns,
     required this.isFirstBlood,
     required this.onDelta,
+    required this.onOpenCommanderDamage,
+    required this.commanderDamageTotal,
   });
 
   @override
@@ -469,7 +610,7 @@ class _LifeTile extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final accentColor = scheme.primary.withValues(alpha: .8);
-    final content = DecoratedBox(
+    final tileBody = DecoratedBox(
       decoration: BoxDecoration(
         color: scheme.surfaceContainer,
         border: Border.all(color: scheme.outlineVariant),
@@ -538,9 +679,249 @@ class _LifeTile extends StatelessWidget {
         ],
       ),
     );
+    // Commander-Schaden-Button (Nutzerwunsch: "prominenter" und "statt
+    // neben dem Namen rechts unten") - als eigenständiger, größerer
+    // Kreis-Button über der Kachel platziert statt in der Namenszeile,
+    // mit Badge für die bereits erhaltene Gesamtsumme. Liegt in der
+    // rechten unteren Ecke der "+"-Tippfläche; da er als eigener
+    // InkWell mit begrenzter Fläche ÜBER dem großen "+"-InkWell im
+    // Stack liegt, fängt er Tipps in seinem eigenen Bereich ab, der
+    // Rest der "+"-Fläche bleibt normal bedienbar. Bewusst erst NACH
+    // [tileBody] im Stack (= oben drauf), damit er nicht vom großen
+    // "+"-InkWell überdeckt wird. Nur sichtbar, wenn es überhaupt
+    // Gegner gibt (siehe _LifeGrid._tile).
+    final content = onOpenCommanderDamage == null
+        ? tileBody
+        : Stack(
+            children: [
+              tileBody,
+              Positioned(
+                right: 6,
+                bottom: 6,
+                child: Material(
+                  color: scheme.secondaryContainer,
+                  shape: const CircleBorder(),
+                  elevation: 2,
+                  child: InkWell(
+                    onTap: onOpenCommanderDamage,
+                    customBorder: const CircleBorder(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(9),
+                      child: Badge(
+                        isLabelVisible: commanderDamageTotal > 0,
+                        label: Text('$commanderDamageTotal'),
+                        child: Icon(
+                          Icons.shield,
+                          size: 24,
+                          color: scheme.onSecondaryContainer,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
     return quarterTurns == 0
         ? content
         : RotatedBox(quarterTurns: quarterTurns, child: content);
+  }
+}
+
+/// Dialog zum Eintragen von Commander-Schaden für [receiver]
+/// (Nutzerwunsch): pro Gegner ([opponents]) eine Zeile je Commander
+/// (Commander + ggf. Partner-Commander separat, siehe
+/// LiveParticipant.commanderName/secondCommanderName) mit +/-
+/// Zählern. Führt eine LOKALE Arbeitskopie von [currentTotals]
+/// (übergeben aus _LiveGameScreenState._currentCommanderDamage), damit
+/// die Zahlen im Dialog sofort auf Tippen reagieren, unabhängig davon,
+/// dass der eigentliche Live-Screen dahinter separat (asynchron über
+/// [onDelta]) aktualisiert und persistiert.
+class _CommanderDamageDialog extends StatefulWidget {
+  final LiveParticipant receiver;
+  final List<LiveParticipant> opponents;
+  final Map<String, int> currentTotals;
+  final void Function(LiveParticipant source, CommanderSlot slot, int delta)
+      onDelta;
+
+  const _CommanderDamageDialog({
+    required this.receiver,
+    required this.opponents,
+    required this.currentTotals,
+    required this.onDelta,
+  });
+
+  @override
+  State<_CommanderDamageDialog> createState() =>
+      _CommanderDamageDialogState();
+}
+
+class _CommanderDamageDialogState extends State<_CommanderDamageDialog> {
+  late Map<String, int> _totals;
+
+  @override
+  void initState() {
+    super.initState();
+    _totals = Map.of(widget.currentTotals);
+  }
+
+  String _keyFor(LiveParticipant source, CommanderSlot slot) =>
+      commanderDamageKey(
+        receiverId: widget.receiver.gameParticipantId,
+        sourceParticipantId: source.gameParticipantId,
+        slot: slot,
+      );
+
+  void _change(LiveParticipant source, CommanderSlot slot, int delta) {
+    final key = _keyFor(source, slot);
+    final next = (_totals[key] ?? 0) + delta;
+    if (next < 0) return;
+    setState(() => _totals[key] = next);
+    widget.onDelta(source, slot, delta);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Eigener Dialog statt AlertDialog: AlertDialog begrenzt die Breite
+    // auf einen schmalen Standardwert und stapelt die Gegner in einer
+    // einzelnen, vertikal scrollenden Spalte - bei 3 Gegnern im
+    // Querformat (typische Live-Tracking-Ausrichtung) reicht die Höhe
+    // dann nicht mehr aus. Stattdessen: feste Kartenbreite pro Gegner
+    // in einem Wrap, das die verfügbare Bildschirmbreite ausnutzt, so
+    // dass mehrere Gegner i. d. R. in eine Zeile passen; bei größeren
+    // Pods oder schmaleren Bildschirmen fällt es auf mehrere Zeilen mit
+    // Scroll-Fallback zurück (siehe Nutzerfeedback: "bei drei Spielern
+    // schon scrollen muss").
+    final screenSize = MediaQuery.sizeOf(context);
+    final maxDialogWidth = screenSize.width - 32;
+    final maxDialogHeight = screenSize.height - 32;
+    const cardWidth = 220.0;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxDialogWidth,
+          maxHeight: maxDialogHeight,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Commander-Schaden für ${widget.receiver.displayName}',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Fertig',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      for (final source in widget.opponents)
+                        SizedBox(
+                          width: cardWidth,
+                          child: _opponentCard(source),
+                        ),
+                      if (widget.opponents.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text('Keine Gegner in dieser Partie.'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _opponentCard(LiveParticipant source) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              source.displayName,
+              style: Theme.of(context).textTheme.titleSmall,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            _commanderRow(
+              source,
+              CommanderSlot.primary,
+              // Fällt auf einen generischen Platzhalter zurück, statt
+              // den Gegner ganz aus der Auswahl zu entfernen, wenn kein
+              // Commander hinterlegt ist (anonymer Teilnehmer oder Deck
+              // ohne Commander-Angabe) - siehe LiveParticipant.commanderName.
+              source.commanderName ?? 'Commander (unbekannt)',
+            ),
+            if (source.secondCommanderName != null &&
+                source.secondCommanderName!.isNotEmpty)
+              _commanderRow(
+                source,
+                CommanderSlot.partner,
+                source.secondCommanderName!,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _commanderRow(
+    LiveParticipant source,
+    CommanderSlot slot,
+    String label,
+  ) {
+    final total = _totals[_keyFor(source, slot)] ?? 0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: total <= 0 ? null : () => _change(source, slot, -1),
+            icon: const Icon(Icons.remove_circle_outline),
+          ),
+          SizedBox(
+            width: 24,
+            child: Text(
+              '$total',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _change(source, slot, 1),
+            icon: const Icon(Icons.add_circle_outline),
+          ),
+        ],
+      ),
+    );
   }
 }
 

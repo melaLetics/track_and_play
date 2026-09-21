@@ -5,6 +5,7 @@ import '../../../../core/widgets/rename_dialog.dart';
 import '../../../../database/app_database.dart';
 import '../../controller/provider/players_repository_provider.dart';
 import '../../../decks/controller/provider/decks_repository_provider.dart';
+import '../../../decks/model/deck_archetype_labels.dart';
 import '../../../decks/model/deck_build_type_labels.dart';
 import '../../../decks/view/widgets/deck_form_dialog.dart';
 import '../../../decks/view/widgets/deck_stack_card.dart';
@@ -306,6 +307,9 @@ class _PlayerDetailScreenState extends ConsumerState<PlayerDetailScreen> {
                 if (deck.bracket != null) 'Bracket ${deck.bracket}',
                 if (deck.buildType != null)
                   deckBuildTypeLabels[deck.buildType!] ?? deck.buildType!.name,
+                if (_archetypeSummary(deck) != null) _archetypeSummary(deck)!,
+                if (deck.subthemes != null && deck.subthemes!.isNotEmpty)
+                  deck.subthemes!,
                 if (deck.archived) 'archiviert',
               ];
               return DeckStackCard(
@@ -400,6 +404,22 @@ List<Deck> _sortDecks(
       break;
   }
   return sorted;
+}
+
+/// Kommagetrennte Anzeige aller bis zu drei gesetzten Archetypen eines
+/// Decks (siehe Decks.archetype/secondArchetype/thirdArchetype), oder
+/// null, wenn keiner gesetzt ist - für die Deck-Kachel-Untertitelzeile
+/// (siehe Aufrufstelle).
+String? _archetypeSummary(Deck deck) {
+  final labels = [
+    deck.archetype,
+    deck.secondArchetype,
+    deck.thirdArchetype,
+  ]
+      .whereType<DeckArchetype>()
+      .map((a) => deckArchetypeLabels[a] ?? a.name)
+      .toList();
+  return labels.isEmpty ? null : labels.join(', ');
 }
 
 /// Kurzer Anzeige-Text der zum aktuellen [_DeckSort] passenden

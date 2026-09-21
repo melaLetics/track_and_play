@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../../games/controller/repository/games_repository.dart';
+import '../../decks/model/deck_archetype_labels.dart';
 
 /// Siegquote für eine benannte Gruppe von Partien-Teilnahmen (z. B. ein
 /// Startpositions-Terzil, ein Dauer-Terzil oder eine Farbidentität).
@@ -166,6 +167,45 @@ EloScore computeEloScore(List<SelfGameStatsRow> rows) {
   }
 
   return EloScore(rating: rating, gamesCounted: sorted.length);
+}
+
+/// Siegquote nach Archetyp (Decks.archetype/secondArchetype/
+/// thirdArchetype), NICHT nach den freien Subthemes (Nutzerwunsch:
+/// nur die feste Archetyp-Auswahl soll in die Statistik einfliessen).
+/// Analog zu computeWinRateByColorIdentity, mit einem Unterschied:
+/// ein Deck kann bis zu drei Archetypen gleichzeitig haben
+/// (Nutzerwunsch-Erweiterung, "oft sind Decks mehreren Archetypen
+/// zugeordnet") - eine Partie mit einem Zwei- oder Drei-Archetyp-Deck
+/// zaehlt deshalb bewusst in JEDEN ihrer Archetyp-Buckets mit (nicht
+/// nur in den ersten), analog zu einer Tag-Wolke. Das bedeutet, die
+/// gamesPlayed-Summe über alle Buckets kann die Gesamtzahl der
+/// Partien übersteigen - erwartetes Verhalten bei Mehrfachauswahl,
+/// keine Inkonsistenz. Partien ohne Deck-Angabe ODER mit Deck, aber
+/// ganz ohne gesetzten Archetyp, landen gesammelt unter "Kein
+/// Archetyp angegeben".
+List<BucketWinStats> computeWinRateByArchetype(
+  List<SelfGameStatsRow> rows,
+) {
+  final byArchetype = <String, List<SelfGameStatsRow>>{};
+  for (final r in rows) {
+    if (r.archetypes.isEmpty) {
+      byArchetype.putIfAbsent('Kein Archetyp angegeben', () => []).add(r);
+      continue;
+    }
+    for (final a in r.archetypes) {
+      final key = deckArchetypeLabels[a] ?? a.name;
+      byArchetype.putIfAbsent(key, () => []).add(r);
+    }
+  }
+
+  return [
+    for (final entry in byArchetype.entries)
+      BucketWinStats(
+        label: entry.key,
+        gamesPlayed: entry.value.length,
+        wins: entry.value.where((r) => r.isWinner).length,
+      ),
+  ]..sort((a, b) => b.gamesPlayed.compareTo(a.gamesPlayed));
 }
 
 /// Kurzes Textlabel zum 0-100-Elo-Score - für das Barometer im

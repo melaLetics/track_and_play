@@ -102,6 +102,7 @@ class _StatsBody extends ConsumerWidget {
         final stats = computePlayerStats(filtered);
         final elo = computeEloScore(filtered);
         final byColor = computeWinRateByColorIdentity(filtered);
+        final byArchetype = computeWinRateByArchetype(filtered);
         final byPosition = computeWinRateByStartPosition(filtered);
         final byDuration = computeWinRateByDuration(filtered);
         final lending = computeLendingStats(filtered);
@@ -169,6 +170,30 @@ class _StatsBody extends ConsumerWidget {
                       'Siegquote: ${_formatRate(stats.winRate)}',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
+                    // Nur anzeigen, wenn es überhaupt welche gab (kein
+                    // "0 Commander-Kills" als Standardrauschen) - siehe
+                    // SelfGameStatsRow.commanderKillsDealt. Nur bei
+                    // Live-Erfassung möglich, daher in vielen Auswahlen
+                    // schlicht 0.
+                    if (stats.commanderKillsDealt > 0) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.shield,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${stats.commanderKillsDealt} '
+                            '${stats.commanderKillsDealt == 1 ? 'Commander-Kill' : 'Commander-Kills'} '
+                            '(≥21 Schaden von einem Commander)',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -321,6 +346,18 @@ class _StatsBody extends ConsumerWidget {
                 showManaSymbols: true,
               ),
               const SizedBox(height: 20),
+              // Nur die feste Archetyp-Auswahl (Decks.archetype), NICHT
+              // die freien Subthemes (Nutzerwunsch) - siehe
+              // computeWinRateByArchetype.
+              ..._bucketSection(
+                context,
+                title: 'Nach Archetyp',
+                buckets: byArchetype,
+                emptyHint:
+                    'Noch keine Decks mit angegebenem Archetyp in dieser '
+                    'Auswahl.',
+              ),
+              const SizedBox(height: 20),
               ..._bucketSection(
                 context,
                 title: 'Nach Startposition',
@@ -354,8 +391,35 @@ class _StatsBody extends ConsumerWidget {
         title: Text(deck.deckLabel),
         // Nur noch die Mana-Symbole statt zusaetzlich auch noch der
         // rohe WUBRG-String (Nutzerwunsch) - bei farblosen Decks zeigt
-        // ManaSymbolRow bereits das eindeutige Colorless-Symbol.
-        subtitle: ManaSymbolRow(colorIdentity: deck.colorIdentity, size: 24),
+        // ManaSymbolRow bereits das eindeutige Colorless-Symbol. Darunter
+        // optional die Commander-Kills dieses Decks (nur, wenn > 0 -
+        // siehe DeckWinStats.commanderKillsDealt).
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ManaSymbolRow(colorIdentity: deck.colorIdentity, size: 24),
+            if (deck.commanderKillsDealt > 0) ...[
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.shield,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${deck.commanderKillsDealt} '
+                    '${deck.commanderKillsDealt == 1 ? 'Commander-Kill' : 'Commander-Kills'}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,

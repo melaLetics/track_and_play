@@ -117,6 +117,18 @@ class DeckExport {
   final String? deckLink;
   final bool archived;
 
+  /// Namen von bis zu drei DeckArchetype-Werten (z. B. "voltron"),
+  /// siehe decks_table.dart - als String statt Enum, analog zu
+  /// [buildType]. [archetype] ist der erste, [secondArchetype]/
+  /// [thirdArchetype] die beiden optionalen weiteren (Nutzerwunsch:
+  /// viele Decks lassen sich nicht auf einen Archetyp reduzieren).
+  final String? archetype;
+  final String? secondArchetype;
+  final String? thirdArchetype;
+
+  /// Freitext, siehe Decks.subthemes.
+  final String? subthemes;
+
   const DeckExport({
     required this.ownerName,
     required this.name,
@@ -129,6 +141,10 @@ class DeckExport {
     this.isTournamentLegal = true,
     this.deckLink,
     this.archived = false,
+    this.archetype,
+    this.secondArchetype,
+    this.thirdArchetype,
+    this.subthemes,
   });
 
   Map<String, dynamic> toJson() => {
@@ -143,6 +159,10 @@ class DeckExport {
         'isTournamentLegal': isTournamentLegal,
         'deckLink': deckLink,
         'archived': archived,
+        'archetype': archetype,
+        'secondArchetype': secondArchetype,
+        'thirdArchetype': thirdArchetype,
+        'subthemes': subthemes,
       };
 
   factory DeckExport.fromJson(Map<String, dynamic> json) => DeckExport(
@@ -157,6 +177,10 @@ class DeckExport {
         isTournamentLegal: json['isTournamentLegal'] as bool? ?? true,
         deckLink: json['deckLink'] as String?,
         archived: json['archived'] as bool? ?? false,
+        archetype: json['archetype'] as String?,
+        secondArchetype: json['secondArchetype'] as String?,
+        thirdArchetype: json['thirdArchetype'] as String?,
+        subthemes: json['subthemes'] as String?,
       );
 }
 

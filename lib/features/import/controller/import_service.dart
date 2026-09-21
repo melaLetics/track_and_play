@@ -314,6 +314,20 @@ class ImportService {
             buildType = null;
           }
         }
+        // Gemeinsame Parse-Hilfe fuer alle drei Archetyp-Felder statt
+        // dreifach denselben try/on-Block zu wiederholen.
+        DeckArchetype? parseArchetype(String? name) {
+          if (name == null) return null;
+          try {
+            return DeckArchetype.values.byName(name);
+          } on ArgumentError {
+            return null;
+          }
+        }
+
+        final archetype = parseArchetype(de.archetype);
+        final secondArchetype = parseArchetype(de.secondArchetype);
+        final thirdArchetype = parseArchetype(de.thirdArchetype);
         final key = '${de.ownerName.toLowerCase()}||${de.name.toLowerCase()}';
 
         if (selection.mergeDeckIndexes.contains(i)) {
@@ -337,6 +351,10 @@ class ImportService {
                 isProxy: Value(de.isProxy),
                 isTournamentLegal: Value(de.isTournamentLegal),
                 deckLink: Value(de.deckLink),
+                archetype: Value(archetype),
+                secondArchetype: Value(secondArchetype),
+                thirdArchetype: Value(thirdArchetype),
+                subthemes: Value(de.subthemes),
               ),
             );
             deckIdByKey[key] = existingId;
@@ -362,6 +380,10 @@ class ImportService {
                 isTournamentLegal: Value(de.isTournamentLegal),
                 deckLink: Value(de.deckLink),
                 archived: Value(de.archived),
+                archetype: Value(archetype),
+                secondArchetype: Value(secondArchetype),
+                thirdArchetype: Value(thirdArchetype),
+                subthemes: Value(de.subthemes),
               ),
             );
         deckIdByKey[key] = id;
@@ -752,6 +774,18 @@ List<String> _deckFieldDiffs(Deck existing, DeckExport incoming) {
     incoming.isTournamentLegal,
   );
   check('Link', existing.deckLink, incoming.deckLink);
+  check('Archetyp', existing.archetype?.name, incoming.archetype);
+  check(
+    'Zweiter Archetyp',
+    existing.secondArchetype?.name,
+    incoming.secondArchetype,
+  );
+  check(
+    'Dritter Archetyp',
+    existing.thirdArchetype?.name,
+    incoming.thirdArchetype,
+  );
+  check('Subthemes', existing.subthemes, incoming.subthemes);
 
   return diffs;
 }
