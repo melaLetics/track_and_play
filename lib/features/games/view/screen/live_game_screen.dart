@@ -152,6 +152,26 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
     return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
   }
 
+  /// Team-Partner von [participant] in Two-Headed Giant (Nutzer-
+  /// Bugreport: "bei Two Headed Giant teilen sich Team Partner einen
+  /// Lebenspunktestand" - bislang wurde jede Kachel unabhängig
+  /// gezählt). Leer außerhalb von Two-Headed Giant oder ohne gesetztes
+  /// Team (z. B. bei alten Partien ohne Team-Zuordnung). Bewusst NICHT
+  /// für Erzfeind genutzt - dort hat trotz Team-Zugehörigkeit jeder
+  /// Teilnehmer weiterhin einen EIGENEN Lebenspunktestand, nur
+  /// Two-Headed Giant teilt sich laut Regelwerk einen gemeinsamen Pool.
+  List<LiveParticipant> _teammatesOf(LiveParticipant participant) {
+    if (widget.mode != GameMode.twoHeadedGiant) return const [];
+    final team = participant.team;
+    if (team == null || team.isEmpty) return const [];
+    return [
+      for (final p in widget.participants)
+        if (p.gameParticipantId != participant.gameParticipantId &&
+            p.team == team)
+          p,
+    ];
+  }
+
   /// Aktualisiert NUR den lokalen UI-Zustand für eine Lebenspunkte-
   /// Änderung (Zahl, "Erste Blutung", Eliminierungs-Reihenfolge) -
   /// OHNE einen DB-Schreibvorgang. Gemeinsam genutzt von [_applyDelta]
@@ -175,14 +195,26 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
 
   Future<void> _applyDelta(LiveParticipant participant, int delta) async {
     final newLife = (_currentLife[participant.gameParticipantId] ?? 0) + delta;
-    _updateLocalLifeState(participant.gameParticipantId, newLife, delta);
     final repo = ref.read(gamesRepositoryProvider);
-    await repo.recordLifeChange(
-      gameId: widget.gameId,
-      gameParticipantId: participant.gameParticipantId,
-      delta: delta,
-      resultingLife: newLife,
-    );
+    // Two-Headed Giant: Team-Partner teilen sich EINEN Lebenspunktestand
+    // (siehe [_teammatesOf]) - jede Änderung wird deshalb identisch auf
+    // das angetippte Mitglied UND alle Team-Partner angewendet, mit
+    // demselben resultierenden Wert [newLife] für alle (statt je
+    // Partner separat "+delta" zu rechnen) - das heilt nebenbei auch
+    // einen zuvor durch den oben genannten Bug entstandenen
+    // Gleichstand-Unterschied bei einer bereits laufenden Partie beim
+    // nächsten Lebenspunkte-Tipp automatisch aus. Außerhalb von
+    // Two-Headed Giant liefert [_teammatesOf] eine leere Liste, das
+    // Verhalten bleibt dort unverändert (nur [participant] selbst).
+    for (final p in [participant, ..._teammatesOf(participant)]) {
+      _updateLocalLifeState(p.gameParticipantId, newLife, delta);
+      await repo.recordLifeChange(
+        gameId: widget.gameId,
+        gameParticipantId: p.gameParticipantId,
+        delta: delta,
+        resultingLife: newLife,
+      );
+    }
   }
 
   /// Trägt [delta] Commander-Schaden von [source]s Commander/Partner-
@@ -213,17 +245,35 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
           (_commanderDamageTotalByReceiver[receiver.gameParticipantId] ?? 0) +
               delta;
     });
-    _updateLocalLifeState(receiver.gameParticipantId, newLife, -delta);
     final repo = ref.read(gamesRepositoryProvider);
-    await repo.recordCommanderDamage(
-      gameId: widget.gameId,
-      gameParticipantId: receiver.gameParticipantId,
-      sourceParticipantId: source.gameParticipantId,
-      commanderSlot: slot,
-      delta: delta,
-      resultingCommanderDamage: newTotal,
-      resultingLife: newLife,
-    );
+    // Two-Headed Giant: der Lebenspunkte-Abzug durch Commander-Schaden
+    // betrifft (wie jede andere Lebenspunkte-Änderung, siehe
+    // [_applyDelta]) den GESAMTEN geteilten Stand des Teams - auch wenn
+    // der Commander-Schaden selbst bewusst nur beim tatsächlichen
+    // EMPFÄNGER als CommanderDamageEvents-Eintrag vermerkt wird (ein
+    // Team-Partner hat nicht automatisch denselben Commander-Schaden-
+    // Stand erhalten, nur dieselben Lebenspunkte verloren).
+    for (final p in [receiver, ..._teammatesOf(receiver)]) {
+      _updateLocalLifeState(p.gameParticipantId, newLife, -delta);
+      if (p.gameParticipantId == receiver.gameParticipantId) {
+        await repo.recordCommanderDamage(
+          gameId: widget.gameId,
+          gameParticipantId: receiver.gameParticipantId,
+          sourceParticipantId: source.gameParticipantId,
+          commanderSlot: slot,
+          delta: delta,
+          resultingCommanderDamage: newTotal,
+          resultingLife: newLife,
+        );
+      } else {
+        await repo.recordLifeChange(
+          gameId: widget.gameId,
+          gameParticipantId: p.gameParticipantId,
+          delta: -delta,
+          resultingLife: newLife,
+        );
+      }
+    }
   }
 
   /// Öffnet den Commander-Schaden-Dialog für [receiver] (Nutzerwunsch:
@@ -257,6 +307,16 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
   /// (null), da die Reihenfolge unter ihnen nicht ermittelbar ist. Nur
   /// ein Vorschlag: die Platzierungen bleiben im Dialog editierbar.
   Map<int, int?> _suggestedPlacements() {
+    // Two-Headed Giant braucht eine eigene, team-bewusste Herleitung
+    // (siehe [_suggestedTeamPlacements]) - da Team-Partner sich seit
+    // dem Bugfix oben einen Lebenspunktestand teilen, fallen sie IMMER
+    // gemeinsam auf <= 0 und müssten laut
+    // game_setup_validator.validateGameResult auch denselben Platz
+    // (1 oder 2) bekommen, nicht wie unten je nach Reihenfolge in
+    // [_eliminationOrder] unterschiedliche Plätze.
+    if (widget.mode == GameMode.twoHeadedGiant) {
+      return _suggestedTeamPlacements();
+    }
     final ids = [for (final p in widget.participants) p.gameParticipantId];
     final n = ids.length;
     final eliminated = [
@@ -273,6 +333,45 @@ class _LiveGameScreenState extends ConsumerState<LiveGameScreen> {
     }
     if (survivors.length == 1) {
       result[survivors.first] = 1;
+    }
+    return result;
+  }
+
+  /// Team-bewusste Variante von [_suggestedPlacements] für Two-Headed
+  /// Giant: ein Team gilt als eliminiert, sobald IRGENDEIN Mitglied in
+  /// [_eliminationOrder] auftaucht (dank geteilter Lebenspunkte fallen
+  /// ohnehin alle Mitglieder gemeinsam auf <= 0) - bekommt dann Platz 2,
+  /// das andere Team Platz 1. Genau die beiden für Two-Headed Giant
+  /// gültigen Werte (siehe game_setup_validator.validateGameResult).
+  /// Bei fehlender/uneindeutiger Team-Zuordnung oder wenn beide bzw.
+  /// keines der Teams eliminiert wurde, bleibt die Platzierung offen
+  /// (null) - bewusst nur ein Vorschlag, im Dialog weiterhin editierbar.
+  Map<int, int?> _suggestedTeamPlacements() {
+    final result = <int, int?>{
+      for (final p in widget.participants) p.gameParticipantId: null,
+    };
+    final teams = <String, List<LiveParticipant>>{};
+    for (final p in widget.participants) {
+      final team = p.team;
+      if (team == null || team.isEmpty) continue;
+      teams.putIfAbsent(team, () => []).add(p);
+    }
+    if (teams.length != 2) return result;
+
+    final eliminatedTeams = [
+      for (final entry in teams.entries)
+        if (entry.value.any(
+          (p) => _eliminationOrder.contains(p.gameParticipantId),
+        ))
+          entry.key,
+    ];
+    if (eliminatedTeams.length != 1) return result;
+
+    for (final entry in teams.entries) {
+      final placement = entry.key == eliminatedTeams.first ? 2 : 1;
+      for (final p in entry.value) {
+        result[p.gameParticipantId] = placement;
+      }
     }
     return result;
   }

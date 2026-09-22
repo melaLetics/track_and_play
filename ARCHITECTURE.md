@@ -3615,6 +3615,98 @@ automatische Verknüpfung zur tatsächlichen Platzierung. Reine
 Auswertung bestehender Rohdaten - keine Schema-Änderung, kein
 `build_runner`-Lauf, kein Löschen der App-Daten nötig.
 
+## Bugfix: geteilter Lebenspunktestand bei Two-Headed Giant
+
+Nutzer-Bugreport: "bei Two Headed Giant teilen sich Team Partner einen
+Lebenspunktestand" - jede `_LifeTile` zählte bislang unabhängig, obwohl
+Two-Headed Giant laut Regelwerk EINEN gemeinsamen Lebenspunktepool pro
+Team hat (im Unterschied zu Erzfeind, wo trotz Team-Zugehörigkeit jeder
+Teilnehmer weiterhin einen eigenen Stand hat - dort bewusst
+unverändert).
+
+- Neue Hilfsmethode `_LiveGameScreenState._teammatesOf(participant)`:
+  liefert außerhalb von Two-Headed Giant oder ohne gesetztes Team eine
+  leere Liste, sonst alle anderen Teilnehmer mit demselben
+  `LiveParticipant.team`.
+- `_applyDelta` (normale +/- Tipp-Flächen) wendet die Änderung jetzt
+  auf das angetippte Mitglied UND alle Team-Partner an - mit demselben
+  resultierenden Lebenspunkte-Wert für alle (nicht je Partner separat
+  "+delta"), damit ein bereits vor diesem Fix entstandener
+  Gleichstand-Unterschied bei einer laufenden Partie beim nächsten
+  Lebenspunkte-Tipp automatisch mit-geheilt wird, statt bestehen zu
+  bleiben.
+- `_applyCommanderDamage`: der automatische Lebenspunkte-Abzug
+  betrifft jetzt ebenfalls das gesamte Team. Der
+  CommanderDamageEvents-Eintrag selbst bleibt bewusst nur beim
+  tatsächlichen Empfänger (ein Team-Partner hat nicht denselben
+  Commander-Schaden-Stand erhalten, nur dieselben Lebenspunkte
+  verloren) - für den Partner wird stattdessen ein passender
+  LifeEvents-Eintrag ohne CommanderDamageEvents-Gegenstück geschrieben.
+- Direkte Folge: `_suggestedPlacements` (Platzierungs-Vorschlag beim
+  Beenden einer Live-Partie) hätte Team-Partnern, die jetzt IMMER
+  gemeinsam auf <= 0 fallen, trotzdem unterschiedliche Plätze
+  vorgeschlagen (Reihenfolge in `_eliminationOrder`), was gegen
+  `game_setup_validator.validateGameResult` verstößt ("Alle
+  Mitglieder eines Teams müssen denselben Platz belegen"). Neue
+  team-bewusste `_suggestedTeamPlacements`: ein Team gilt als
+  eliminiert, sobald irgendein Mitglied in `_eliminationOrder`
+  auftaucht, bekommt dann Platz 2, das andere Team Platz 1 - bei
+  uneindeutiger Lage (nicht genau zwei Teams, oder nicht genau ein
+  eliminiertes Team) bleibt die Platzierung wie gehabt offen (null,
+  im Dialog weiterhin editierbar). Nur für Two-Headed Giant aktiv,
+  Erzfeind/Commander/cEDH nutzen weiterhin die bisherige,
+  Reihenfolge-basierte Logik.
+- Bewusst NICHT rückwirkend korrigiert: eine VOR diesem Fix bereits
+  auseinandergelaufene, noch laufende Live-Partie zeigt beim
+  Fortsetzen weiterhin die zuletzt gespeicherten (ggf.
+  unterschiedlichen) Werte pro Teilnehmer an - der nächste
+  Lebenspunkte-Tipp auf einer der beiden Kacheln gleicht sie dann,
+  wie oben beschrieben, automatisch wieder an.
+
+Reine Logik-Änderung im Live-Tracking - keine Schema-Änderung, kein
+`build_runner`-Lauf, kein Löschen der App-Daten nötig.
+
+## Bugfix: falsche Start-Lebenspunkte im Erzfeind-Modus
+
+Nutzer-Bugreport: "Wenn man eine Erzfeind Partie startet, bekommt der
+als Erzfeind markierte Spieler 60 Startlebenspunkte." Recherche ergab:
+im Code gab es dafür KEINE automatische Sonderbehandlung - es existierte
+nur ein einziger globaler `_startingLife`-Wert (Standard 40), der beim
+Start unterschiedslos an ALLE Teilnehmer vergeben wurde, auch an den
+Erzfeind. Der eigentliche Kern des Bugreports (vom Nutzer auf Nachfrage
+bestätigt): das ist im Erzfeind-Modus schlicht FALSCH - Erzfeind und
+Gegenspieler brauchen unterschiedliche Start-Lebenspunkte, nicht
+denselben Wert. Offizielle Archenemy-Commander-Regel (recherchiert) UND
+vom Nutzer bestätigter Zielwert: Erzfeind startet mit 60, jeder
+einzelne Gegenspieler mit 20 - bewusst OHNE geteilten Team-Pool wie bei
+Two-Headed Giant (siehe oben), jeder Gegenspieler bleibt individuell
+zählbar und eliminierbar.
+
+- Neue getrennte State-Felder in `GameSetupScreen`:
+  `_startingLifeArchenemy` (Standard 60) und `_startingLifeTeam`
+  (Standard 20), zusätzlich zum bisherigen `_startingLife` (Standard
+  40, weiterhin für Commander/cEDH/Two-Headed Giant genutzt - dort
+  bekommen weiterhin alle denselben Wert, das ist dort korrekt).
+- Neue Hilfsmethode `_startingLifeFor(GameParticipantDraft p)`: liefert
+  im Erzfeind-Modus abhängig von `p.team == 'archenemy'` den passenden
+  der beiden neuen Werte, sonst weiterhin `_startingLife` für alle.
+  `_startLive()` nutzt das jetzt statt des bisherigen einheitlichen
+  `p.copyWith(startingLife: _startingLife)`.
+- UI: der bisherige einzelne "Start-Lebenspunkte"-Stepper wurde in ein
+  wiederverwendbares `_LifeStepperRow`-Widget (mit optionalem
+  Rollen-Label) extrahiert. Im Erzfeind-Modus werden jetzt ZWEI Zeilen
+  angezeigt ("Erzfeind" / "Team (je Spieler)"), in allen anderen Modi
+  weiterhin nur die eine bisherige Zeile - beide Werte bleiben über die
+  +/- -Stepper frei anpassbar, 60/20 sind nur die Startwerte.
+- Bewusst NICHT angefasst: die manuelle Partien-Erfassung (dort werden
+  gar keine Start-Lebenspunkte erfasst, siehe `createManualGame`) sowie
+  die Commander-Schaden-Logik (bereits vorher individuell pro
+  Empfänger, passt unverändert zur offiziellen Regel "einzelne Helden
+  können trotzdem separat per Commander-Schaden/Gift ausscheiden").
+
+Reine UI-/Logik-Änderung im Setup-Screen - keine Schema-Änderung, kein
+`build_runner`-Lauf, kein Löschen der App-Daten nötig.
+
 ## Bekannte Einschränkung: keine Datenbank-Migration
 
 `AppDatabase.schemaVersion` steht aktuell fest auf `1`, es gibt keine

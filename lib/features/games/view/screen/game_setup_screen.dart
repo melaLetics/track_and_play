@@ -39,6 +39,18 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   DateTime _playedAt = DateTime.now();
   final _notesController = TextEditingController();
   int _startingLife = 40;
+
+  /// Start-Lebenspunkte NUR für den Erzfeind-Modus, getrennt vom
+  /// generischen [_startingLife] (Nutzer-Bugreport: "im Erzfeindmodus
+  /// [ist es] nicht korrekt", dass Erzfeind und Gegenspieler denselben
+  /// Wert bekommen). Offizielle Archenemy-Commander-Regel (recherchiert,
+  /// vom Nutzer bestätigt): Erzfeind startet mit 60, jeder einzelne
+  /// Gegenspieler mit 20 - bewusst KEIN geteilter Team-Pool wie bei
+  /// Two-Headed Giant (siehe dort), jeder Gegenspieler bleibt
+  /// individuell zählbar. Beide bleiben über die UI weiterhin frei
+  /// änderbar, nur die STARTWERTE unterscheiden sich jetzt je Rolle.
+  int _startingLifeArchenemy = 60;
+  int _startingLifeTeam = 20;
   bool _isDraw = false;
   final List<GameParticipantDraft> _participants = [];
   bool _selfAddAttempted = false;
@@ -354,10 +366,21 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     Navigator.of(context).pop();
   }
 
+  /// Start-Lebenspunkte für [p] - im Erzfeind-Modus rollenabhängig
+  /// (siehe [_startingLifeArchenemy]/[_startingLifeTeam]), sonst
+  /// einheitlich [_startingLife] für alle.
+  int _startingLifeFor(GameParticipantDraft p) {
+    if (_mode == GameMode.archenemy) {
+      return p.team == 'archenemy' ? _startingLifeArchenemy : _startingLifeTeam;
+    }
+    return _startingLife;
+  }
+
   Future<void> _startLive() async {
     final startedAt = DateTime.now();
     final draftsWithLife = [
-      for (final p in _participants) p.copyWith(startingLife: _startingLife),
+      for (final p in _participants)
+        p.copyWith(startingLife: _startingLifeFor(p)),
     ];
     final repo = ref.read(gamesRepositoryProvider);
     final (gameId, _) = await repo.startLiveGame(
@@ -559,26 +582,27 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () => setState(
-                    () => _startingLife = (_startingLife - 1).clamp(1, 999),
-                  ),
-                  icon: const Icon(Icons.remove_circle_outline),
-                ),
-                Text(
-                  '$_startingLife',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                IconButton(
-                  onPressed: () => setState(
-                    () => _startingLife = (_startingLife + 1).clamp(1, 999),
-                  ),
-                  icon: const Icon(Icons.add_circle_outline),
-                ),
-              ],
-            ),
+            // Erzfeind braucht ZWEI getrennte Start-Werte statt eines
+            // einzelnen gemeinsamen (Nutzer-Bugreport/offizielle Regel,
+            // siehe [_startingLifeArchenemy]/[_startingLifeTeam]) - alle
+            // anderen Modi bleiben beim bisherigen einzelnen Stepper.
+            if (_mode == GameMode.archenemy) ...[
+              _LifeStepperRow(
+                label: 'Erzfeind',
+                value: _startingLifeArchenemy,
+                onChanged: (v) => setState(() => _startingLifeArchenemy = v),
+              ),
+              const SizedBox(height: 8),
+              _LifeStepperRow(
+                label: 'Team (je Spieler)',
+                value: _startingLifeTeam,
+                onChanged: (v) => setState(() => _startingLifeTeam = v),
+              ),
+            ] else
+              _LifeStepperRow(
+                value: _startingLife,
+                onChanged: (v) => setState(() => _startingLife = v),
+              ),
             const SizedBox(height: 24),
             Row(
               children: [
@@ -793,6 +817,48 @@ class _ParticipantCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Eine Zeile mit -/+ -Stepper für einen Start-Lebenspunkte-Wert,
+/// optional mit vorangestelltem Rollen-Label (Erzfeind-Modus, siehe
+/// oben) - ohne Label identisch zum bisherigen einzelnen Stepper der
+/// anderen Modi.
+class _LifeStepperRow extends StatelessWidget {
+  final String? label;
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  const _LifeStepperRow({
+    this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (label != null) ...[
+          SizedBox(
+            width: 120,
+            child: Text(label!, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+        ],
+        IconButton(
+          onPressed: () => onChanged((value - 1).clamp(1, 999)),
+          icon: const Icon(Icons.remove_circle_outline),
+        ),
+        Text(
+          '$value',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        IconButton(
+          onPressed: () => onChanged((value + 1).clamp(1, 999)),
+          icon: const Icon(Icons.add_circle_outline),
+        ),
+      ],
     );
   }
 }
